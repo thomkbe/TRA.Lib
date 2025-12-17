@@ -30,6 +30,8 @@ namespace TRA_Lib
             this.r2 = r2;
         }
         public virtual object Clone() { return this; }
+
+        protected static double gon2rad(double gon) => gon * Math.PI / 200.0;
     }
     public class Gerade : TrassenGeometrie
     {
@@ -61,6 +63,22 @@ namespace TRA_Lib
             }
             double t_ = (p2.X * d2.Y - p2.Y * d2.X) / determinant;
             return t_;
+        }
+    }
+    public class Knick : Gerade {
+        public Knick(double r1, double length)
+        {
+            this.r1 = r1;
+            this.length = length;
+        }
+
+        public override (double X, double Y, double t, double k) PointAt(double s)
+        {
+            if (s >= length)
+            {
+                return (s, 0.0, gon2rad(r1-200.0), 0.0);
+            }
+            return (s, 0.0, 0.0, 0.0);
         }
     }
     public class Kreis : TrassenGeometrie

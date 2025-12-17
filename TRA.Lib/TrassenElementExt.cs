@@ -93,6 +93,7 @@ namespace TRA_Lib
         TrassenGeometrie TrassenGeometrie;
         public Type GetGeometryType()
         {
+            if (TrassenGeometrie == null) return null;
             return TrassenGeometrie.GetType();
         }
         /// <value>ID des Elements</value>
@@ -187,6 +188,7 @@ namespace TRA_Lib
                     TrassenGeometrie = new Bloss(r1,r2, l);
                     break;
                 case Trassenkennzeichen.Knick:
+                    TrassenGeometrie = new Knick(r1,l);
                     break;
                 case Trassenkennzeichen.KSprung:
                     TrassenGeometrie = new KSprung(l);
@@ -224,21 +226,23 @@ namespace TRA_Lib
             {
                 t = t - deltaGamma;
             }
+            if (TrassenGeometrie == null) return;
             if (!double.IsNaN(deltaK_start))
             {
                 scale = (deltaK_start + deltaK_end) / 2;
                 if (Double.IsNaN(deltaK_end)) { deltaK_end = deltaK_start; }
                 switch (this.TrassenGeometrie)
                 {
-                    case Gerade:
-                        break;
                     case Kreis:
                         r1 = r1 * (deltaK_start + deltaK_end) / 2;
                         r2 = r1;
                         break;
                     case Klothoid:
+                    case Bloss:
                         r1 = r1 * deltaK_start;
                         r2 = r2 * deltaK_end;
+                        break;
+                    default:
                         break;
                 }
                 TrassenGeometrie.updateParameters(l * scale, r1, r2);
