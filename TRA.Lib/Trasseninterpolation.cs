@@ -340,16 +340,12 @@ namespace TRA_Lib
 
         protected override void CalcConstants()
         {
-            // using absolute values is not the elegant way but, simplfies calculations
-            radius = Math.Abs(r2);
-            curvature1 = r1 == 0.0 ? 0 : Math.Abs(1 / r1);
-            curvature2 = r2 == 0.0 ? 0 : Math.Abs(1 / r2);
-            dir = Math.Sign(r2); //Get turning-direction of the Bloss
+            radius = r2 != 0 ? r2 : -r1; // if r2 == 0 we calculate "backwards" therefore we negate radius
+            curvature1 = r1 == 0.0 ? 0 : 1 / r1;
+            curvature2 = r2 == 0.0 ? 0 : 1 / r2;
         }
         public override (double X, double Y, double t, double k) PointAt(double s)
         {
-            if (r2 == 0.0) { return new Gerade().PointAt(s); }
-
             // Fresnel integrals
             double Ca = new double();
             double Sa = new double();
@@ -366,37 +362,58 @@ namespace TRA_Lib
             //Berechnung mit Taylorreihe Formal (3.36):
             double k = 0;
             double t = 0;
-            if (r1 != 0)
+            int dir_ = 1;
+
+            if (r1 != 0 && r2 != 0)
             {
                 double x0, y0, t0;
-                t0 = TangentAtS(length, Math.Abs(r1));
-                (x0, y0) = CalculateTaylor(length, Math.Abs(r1));
+                t0 = HeadingAtS(length, r1);
+                (x0, y0) = CalculateTaylor(length, r1);
                 Transform2D transform0 = new Transform2D(x0, -y0, t0);
                 double x_, y_, t_;
-                t_ = TangentAtS(length - s, Math.Abs(r1));
-                (x_, y_) = CalculateTaylor(length - s, Math.Abs(r1));
+                t_ = HeadingAtS(length - s, r1);
+                (x_, y_) = CalculateTaylor(length - s, r1);
                 Transform2D transform_ = new Transform2D(x_, -y_, t_);
                 (Sa, Ca) = CalculateTaylor(s);
-                t = TangentAtS(s);
+                t = HeadingAtS(s);
                 Ca = 0;
                 double t_out = t-(-t0 + t_); //TODO Test with additional datasets (differnet left/right curvature)
                 transform_.Apply(ref Sa, ref Ca, ref t);
                 transform0.ApplyInverse(ref Sa, ref Ca, ref t);
                 t = t_out;
                 //TODO Curvature Fehler in file:///C:/HTW/Trassierung/Infos/Charakterisierung%20von%20Einzelfehlern%20im%20Eisenbahnoberbau%20aus%20Messfahrten.pdf Formel 2.5 - Addition von k_anf fehlt (vgl. 2.4)?!?
-                k = (1 / Math.Abs(r1))+(1 / Math.Abs(r2) - 1 / Math.Abs(r1)) * (3 * Math.Pow(s / length, 2) - 2 * Math.Pow(s / length, 3));
+                k = (1 / r1)+(1 / r2 - 1 / r1) * (3 * Math.Pow(s / length, 2) - 2 * Math.Pow(s / length, 3));
             }
             else
             {
-                (Sa, Ca) = CalculateTaylor(s);
-                t = TangentAtS(s);
+                double Sa_ = 0.0, Ca_ = 0.0, t_ = 0.0;
+                if (r2 == 0)
+                {
+                    s = length - s;
+                    (Sa_, Ca_) = CalculateTaylor(length,radius);
+                    (Sa, Ca) = CalculateTaylor(s,radius);
+                    t_ = HeadingAtS(length,radius);
+                    double cos = Math.Cos(-t_);
+                    double sin = Math.Sin(-t_);
+                    double dx = Ca - Ca_;
+                    double dy = Sa - Sa_;
+                    Sa = dx * sin + dy * cos;
+                    Ca = dx * cos - dy * sin;
+                    dir_ = -1;
+                }
+                else
+                {
+                    (Sa, Ca) = CalculateTaylor(s);
+                }
+                t = HeadingAtS(s);
+                t = t - t_;
                 k = (3 * Math.Pow(s, 2)) / (radius * Math.Pow(length, 2)) -  (2 * Math.Pow(s, 3)) / (radius * Math.Pow(length, 3));
             }
-            return (Ca, Sa * dir, t*dir, k*dir);
+            return (Ca * dir_, Sa * dir_, t, k * dir_);
         }
-        double TangentAtS(double s, double r = double.NaN)
+        double HeadingAtS(double s, double r = double.NaN)
         {
-            if(s == 0) return 0;
+            if (s == 0 || r == 0) return 0;
             r = double.IsNaN(r) ? r = radius : r;
             return Math.Pow(s, 3) / (r * Math.Pow(length, 2))
                     - Math.Pow(s, 4) / (2 * r * Math.Pow(length, 3));
@@ -424,6 +441,7 @@ namespace TRA_Lib
         (double S, double C) CalculateTaylor(double x, double r = double.NaN)
         {
             if (x == 0) return (0.0, 0.0);
+            if (r == 0) return (x, 0.0);
             int n = 4; // Number of steps for the integration
             double k, t, Fi;
             double S = 0;
