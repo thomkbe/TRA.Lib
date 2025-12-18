@@ -443,6 +443,7 @@ namespace TRA_Lib
                     new DataGridViewTextBoxColumn { HeaderText = "T", Name = "T", ToolTipText = "Richtung am Elementanfang", ValueType = typeof(double), DataPropertyName = nameof(TrassenElementExt.T) },
                     new DataGridViewTextBoxColumn { HeaderText = "S", Name = "S", ToolTipText = "Stationswert am Elementanfang", ValueType = typeof(double), DataPropertyName = nameof(TrassenElementExt.S) },
                     new DataGridViewComboBoxColumn { HeaderText = "Kz", Name = "Kz", ToolTipText = "Kennzeichen des Elements", ValueType = typeof(Trassenkennzeichen), DataPropertyName = nameof(TrassenElementExt.Kz), DataSource = Enum.GetValues(typeof(Trassenkennzeichen)),
+                        SortMode = DataGridViewColumnSortMode.Automatic,
                         DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing},
                     new DataGridViewTextBoxColumn { HeaderText = "L", Name = "L", ToolTipText = "Länge des Elements", ValueType = typeof(double), DataPropertyName = nameof(TrassenElementExt.L) },
                     new DataGridViewTextBoxColumn { HeaderText = "U1", Name = "U1", ToolTipText = "Überhöhung am Elementanfang", ValueType = typeof(double), DataPropertyName = nameof(TrassenElementExt.U1) },
@@ -508,10 +509,10 @@ namespace TRA_Lib
                     element.PlotColor = scatter.MarkerFillColor;
                     ElementMarker marker = new(element, element.PlotColor);
                     Plottables.Add(Plot2D.Plot.Add.Plottable(marker));
-                    var scatterT = PlotT.Plot.Add.Scatter(interpolation.Y, interpolation.T, element.PlotColor);
+                    var scatterT = PlotT.Plot.Add.Scatter(element.GetScatterSource(TrassenInterpolationScatterSource.Mode.YT), element.PlotColor);
                     //scatterT.LegendText = "Heading";
                     Plottables.Add(PlotT.Plot.Add.VerticalLine(element.Ystart, 2, element.PlotColor));
-                    var scatterK = PlotT.Plot.Add.ScatterLine(interpolation.Y, interpolation.K, element.PlotColor);
+                    var scatterK = PlotT.Plot.Add.ScatterLine(element.GetScatterSource(TrassenInterpolationScatterSource.Mode.YK), element.PlotColor);
                     //scatterK.LegendText = "Curvature";
                     // tell each T and K plot to use a different axis
                     scatterT.Axes.YAxis = PlotT.Plot.Axes.Left;
@@ -697,7 +698,6 @@ namespace TRA_Lib
                     }
                     break; 
             }
-            Plot2D.Refresh();
         }
         private void CheckProjections_CheckedChanged(object sender, EventArgs e)
         {

@@ -8,7 +8,7 @@ namespace TRA_Lib
 #if USE_SCOTTPLOT
     public class TrassenInterpolationScatterSource : IScatterSource
     {
-        public enum Mode { YX, XY, XS, YS, XH, YH }
+        public enum Mode { YX, XY, XS, YS, XH, YH, YT, XT, YK, XK }
 
         readonly Func<Interpolation> getInterpolation;
         public Mode ScatterMode { get; set; }
@@ -28,8 +28,12 @@ namespace TRA_Lib
             {
                 Mode.XS => Math.Min(interp.X?.Length ?? 0, interp.S?.Length ?? 0),
                 Mode.XH => Math.Min(interp.X?.Length ?? 0, interp.H?.Length ?? 0),
+                Mode.XT => Math.Min(interp.X?.Length ?? 0, interp.T?.Length ?? 0),
+                Mode.XK => Math.Min(interp.X?.Length ?? 0, interp.K?.Length ?? 0),
                 Mode.YS => Math.Min(interp.Y?.Length ?? 0, interp.S?.Length ?? 0),
                 Mode.YH => Math.Min(interp.Y?.Length ?? 0, interp.H?.Length ?? 0),
+                Mode.YT => Math.Min(interp.Y?.Length ?? 0, interp.T?.Length ?? 0),
+                Mode.YK => Math.Min(interp.Y?.Length ?? 0, interp.K?.Length ?? 0),
                 _ => Math.Min(interp.X?.Length ?? 0, interp.Y?.Length ?? 0)
             };
             if (n == 0) return Array.Empty<Coordinates>();
@@ -45,6 +49,10 @@ namespace TRA_Lib
                     case Mode.YS: px = interp.Y[i]; py = interp.S[i]; break;
                     case Mode.XH: px = interp.X[i]; py = interp.H[i]; break;
                     case Mode.YH: px = interp.Y[i]; py = interp.H[i]; break;
+                    case Mode.XT: px = interp.X[i]; py = interp.T[i]; break;
+                    case Mode.YT: px = interp.Y[i]; py = interp.T[i]; break;
+                    case Mode.XK: px = interp.X[i]; py = interp.K[i]; break;
+                    case Mode.YK: px = interp.Y[i]; py = interp.K[i]; break;
                 }
                 pts[i] = new Coordinates(px, py);
             }
