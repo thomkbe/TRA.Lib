@@ -190,7 +190,7 @@ namespace TRA.Tool
                     }
                 }
             }
-            trasse.Elemente = trasse.Elemente.Where(x => !(x.GetGeometryType() == typeof(KSprung) && x.L == 0)).ToArray(); //Remove KSprung elements of length 0
+            trasse.Elemente = new BindingList<TrassenElementExt>(trasse.Elemente.Where(x => !(x.GetGeometryType() == typeof(KSprung) && x.L == 0)).ToList()); //Remove KSprung elements of length 0
             //Try Removing unnecessary Scale.This can happen if previous scale was saved applied for saving, and inverted Transform was applied.
             foreach (TrassenElementExt element in trasse.Elemente)
             {

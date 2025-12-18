@@ -1,6 +1,4 @@
-﻿
-
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -10,6 +8,8 @@ using ScottPlot.AxisRules;
 using System.Drawing;
 using static TRA_Lib.Interpolation;
 using System.Xml.Linq;
+using System.ComponentModel;
+using System.Linq;
 
 #if USE_SCOTTPLOT
 using ScottPlot.Plottables;
@@ -75,7 +75,7 @@ namespace TRA_Lib
         /// optional name of current CRS
         /// </summary>
         public string CRS_Name = "";
-        public TrassenElementExt[] Elemente;
+        public BindingList<TrassenElementExt> Elemente = new BindingList<TrassenElementExt>();
         ///<value>Stationierungs/Kilometrierungs Trasse. Used to project coordinates to TrasseS and get Station values S of the mileage(TrasseS).</value>
         TRATrasse TrasseS;
         /// <summary>
@@ -189,8 +189,8 @@ namespace TRA_Lib
             if (!double.IsNaN(allowedTolerance)) interpTolerance = allowedTolerance;
 
             Interpolation interp = new Interpolation(0);
-            Interpolation[] interpolation = new Interpolation[Elemente.Length];
-            Task[] tasks = new Task[Elemente.Length];
+            Interpolation[] interpolation = new Interpolation[Elemente.Count];
+            Task[] tasks = new Task[Elemente.Count];
             int n = 0;
             context = SynchronizationContext.Current;
             foreach (TrassenElementExt element in Elemente)
@@ -230,7 +230,7 @@ namespace TRA_Lib
             {
                 TrassierungLog.Logger?.LogError("Can not calculate Heights for Interpolation as there are no Gradient Elements loaded for " + Filename + ". Please add Gradients by calling AssignGRA()", nameof(Interpolate3D));
             }
-            Task[] tasks = new Task[Elemente.Length];
+            Task[] tasks = new Task[Elemente.Count];
             int n = 0;
             foreach (TrassenElementExt element in Elemente)
             {
@@ -426,96 +426,29 @@ namespace TRA_Lib
                 gridView = new DataGridView
                 {
                     Dock = DockStyle.Fill,
-                    AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                    AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                    AutoGenerateColumns = false
                 };
                 gridView.CellDoubleClick += GridView_CellDoubleClick;
                 gridView.CellMouseEnter += GridView_CellMouseEnter;
                 gridView.CellMouseLeave += GridView_CellMouseLeave;
-               gridView.Columns.AddRange(new DataGridViewColumn[]
+                gridView.CellValueChanged += GridView_CellValueChanged;
+                gridView.Columns.AddRange(new DataGridViewColumn[]
                 {
-                    new DataGridViewTextBoxColumn
-                    {
-                        HeaderText = "ID",
-                        Name = "ID",
-                        ValueType = typeof(int),
-                    },
-                    new DataGridViewTextBoxColumn
-                    {
-                        HeaderText = "R1",
-                        Name = "R1",
-                        ToolTipText = "Radius am Elementanfang",
-                        ValueType = typeof(double),
-                    },
-                    new DataGridViewTextBoxColumn
-                    {
-                        HeaderText = "R2",
-                        Name = "R2",
-                        ToolTipText = "Radius am Elementende",
-                        ValueType = typeof(double),
-                    },
-                    new DataGridViewTextBoxColumn
-                    {
-                        HeaderText = "Rechtswert Y",
-                        Name = "Y",
-                        ToolTipText = "Rechtswert am Elementanfang",
-                        ValueType = typeof(double),
-                    },
-                    new DataGridViewTextBoxColumn
-                    {
-                        HeaderText = "Hochwert X",
-                        Name = "X",
-                        ToolTipText = "Hochwert am Elementanfang",
-                        ValueType = typeof(double),
-                    },
-                    new DataGridViewTextBoxColumn
-                    {
-                        HeaderText = "T",
-                        Name = "T",
-                        ToolTipText = "Richtung am Elementanfang",
-                        ValueType = typeof(double),
-                    },
-                    new DataGridViewTextBoxColumn
-                    {
-                        HeaderText = "S",
-                        Name = "S",
-                        ToolTipText = "Stationswert am Elementanfang",
-                        ValueType = typeof(double),
-                    },
-                    new DataGridViewTextBoxColumn
-                    {
-                        HeaderText = "Kz",
-                        Name = "Kz",
-                        ToolTipText = "Kennzeichen des Elements",
-                        ValueType = typeof(Trassenkennzeichen),
-                    },
-                    new DataGridViewTextBoxColumn
-                    {
-                        HeaderText = "L",
-                        Name = "L",
-                        ToolTipText = "Länge des Elements",
-                        ValueType = typeof(double),
-                    },
-                    new DataGridViewTextBoxColumn
-                    {
-                        HeaderText = "U1",
-                        Name = "U1",
-                        ToolTipText = "Überhöhung am Elementanfang",
-                        ValueType = typeof(double),
-                    },
-                    new DataGridViewTextBoxColumn
-                    {
-                        HeaderText = "U2",
-                        Name = "U2",
-                        ToolTipText = "Überhöhung am Elementende",
-                        ValueType = typeof(double),
-                    },
-                    new DataGridViewTextBoxColumn
-                    {
-                        HeaderText = "Punktnummer",
-                        Name = "C",
-                        ToolTipText = "Punktnummer (ehemals C -Abstand zur Trasse)",
-                        ValueType = typeof(string),
-                    }
+                    new DataGridViewTextBoxColumn { HeaderText = "ID", Name = "ID", ValueType = typeof(int), DataPropertyName = nameof(TrassenElementExt.ID) },
+                    new DataGridViewTextBoxColumn { HeaderText = "R1", Name = "R1", ToolTipText = "Radius am Elementanfang", ValueType = typeof(double), DataPropertyName = nameof(TrassenElementExt.R1) },
+                    new DataGridViewTextBoxColumn { HeaderText = "R2", Name = "R2", ToolTipText = "Radius am Elementende", ValueType = typeof(double), DataPropertyName = nameof(TrassenElementExt.R2) },
+                    new DataGridViewTextBoxColumn { HeaderText = "Rechtswert Y", Name = "Y", ToolTipText = "Rechtswert am Elementanfang", ValueType = typeof(double), DataPropertyName = nameof(TrassenElementExt.Ystart) },
+                    new DataGridViewTextBoxColumn { HeaderText = "Hochwert X", Name = "X", ToolTipText = "Hochwert am Elementanfang", ValueType = typeof(double), DataPropertyName = nameof(TrassenElementExt.Xstart) },
+                    new DataGridViewTextBoxColumn { HeaderText = "T", Name = "T", ToolTipText = "Richtung am Elementanfang", ValueType = typeof(double), DataPropertyName = nameof(TrassenElementExt.T) },
+                    new DataGridViewTextBoxColumn { HeaderText = "S", Name = "S", ToolTipText = "Stationswert am Elementanfang", ValueType = typeof(double), DataPropertyName = nameof(TrassenElementExt.S) },
+                    new DataGridViewComboBoxColumn { HeaderText = "Kz", Name = "Kz", ToolTipText = "Kennzeichen des Elements", ValueType = typeof(Trassenkennzeichen), DataPropertyName = nameof(TrassenElementExt.Kz), DataSource = Enum.GetValues(typeof(Trassenkennzeichen)),
+                        DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing},
+                    new DataGridViewTextBoxColumn { HeaderText = "L", Name = "L", ToolTipText = "Länge des Elements", ValueType = typeof(double), DataPropertyName = nameof(TrassenElementExt.L) },
+                    new DataGridViewTextBoxColumn { HeaderText = "U1", Name = "U1", ToolTipText = "Überhöhung am Elementanfang", ValueType = typeof(double), DataPropertyName = nameof(TrassenElementExt.U1) },
+                    new DataGridViewTextBoxColumn { HeaderText = "U2", Name = "U2", ToolTipText = "Überhöhung am Elementende", ValueType = typeof(double), DataPropertyName = nameof(TrassenElementExt.U2) },
+                    new DataGridViewTextBoxColumn { HeaderText = "Punktnummer", Name = "C", ToolTipText = "Punktnummer (ehemals C -Abstand zur Trasse)", ValueType = typeof(string), DataPropertyName = nameof(TrassenElementExt.C) },
+                    new DataGridViewTextBoxColumn { HeaderText = "ProjectionDeviation", Name = "Deviation", ValueType = typeof(double), DataPropertyName = nameof(TrassenElementExt.ProjectionDeviation) }
                 });
                 padding = new(80, 80, 50, 5);
                 //Set properties for new Details-Plot (TRA)
@@ -569,7 +502,7 @@ namespace TRA_Lib
                 Interpolation interpolation = element.InterpolationResult;
                 if (!interpolation.IsEmpty())
                 {
-                    var scatter = Plot2D.Plot.Add.Scatter(interpolation.Y, interpolation.X);
+                    var scatter = Plot2D.Plot.Add.Scatter(element.GetScatterSource(TrassenInterpolationScatterSource.Mode.YX));
                     Plottables.Add(scatter);
                     scatter.LegendText = Filename;
                     element.PlotColor = scatter.MarkerFillColor;
@@ -586,42 +519,18 @@ namespace TRA_Lib
 
                     if (interpolation.H != null && interpolation.s != null)
                     {
-                        var scatterH = PlotG.Plot.Add.Scatter(interpolation.Y, interpolation.H.Where(i => !double.IsNaN(i)).ToArray(), element.PlotColor); //BugFix as ScottPlot Crashes on NaNs should be fixed in future release https://github.com/ScottPlot/ScottPlot/pull/4770
-                                                                                                                                                           //scatterH.LegendText = "Elevation";
+                        var scatterH = PlotG.Plot.Add.Scatter(element.GetScatterSource(TrassenInterpolationScatterSource.Mode.YH), element.PlotColor);
                         scatterH.Axes.YAxis = PlotG.Plot.Axes.Left;
-                        var scatterSlope = PlotG.Plot.Add.ScatterLine(interpolation.Y, interpolation.s.Where(i => !double.IsNaN(i)).ToArray(), element.PlotColor); //BugFix as ScottPlot Crashes on NaNs should be fixed in future release https://github.com/ScottPlot/ScottPlot/pull/4770
-                                                                                                                                                                   //scatterSlope.LegendText = "Slope";
+                        var scatterSlope = PlotG.Plot.Add.ScatterLine(element.GetScatterSource(TrassenInterpolationScatterSource.Mode.YS), element.PlotColor);
                         scatterSlope.Axes.YAxis = PlotG.Plot.Axes.Right;
                     }
                 }
-                //Warnings
+
+                // Warnings
                 Plot2D.Plot.PlottableList.RemoveAll(n => n.GetType() == typeof(GeometryWarning) && ((GeometryWarning)n).trasse == element);
                 Plot2D.Plot.PlottableList.AddRange(element.WarningCallouts);
-                //Raw Data to GridView
-                if (element.projections == null || element.projections.Count == 0)
-                {
-                    int idx = gridView.Rows.Add(element.ID, element.R1, element.R2, element.Ystart, element.Xstart, element.T, element.S, element.KzString, element.L, element.U1, element.U2, element.C);
-                    gridView.Rows[idx].Tag = element;
-                }
-                else
-                {
-                    if (!gridView.Columns.Contains("Deviation")) 
-                    {
-                        gridView.Columns.Add(
-                        new DataGridViewTextBoxColumn
-                        {
-                            HeaderText = "ProjectionDeviation",
-                            Name = "Deviation",
-                            ValueType = typeof(double)
-                        });
-                        gridView.AutoResizeColumns();
-                        gridView.ScrollBars = ScrollBars.Both;
-                    };
-                    int idx = gridView.Rows.Add(element.ID, element.R1, element.R2, element.Ystart, element.Xstart, element.T, element.S, element.KzString, element.L, element.U1, element.U2, element.C,element.MeanProjectionDeviation());
-                    gridView.Rows[idx].Tag = element;
-                }
 
-                //Visualize Projections
+                // Visualize Projections (Plottables)
                 foreach (ProjectionArrow projection in element.projections)
                 {
                     if (projection != null)
@@ -631,6 +540,16 @@ namespace TRA_Lib
                     }
                 }
             }
+
+            if (gridView != null)
+            {
+                gridView.DataSource = new System.Windows.Forms.BindingSource()
+                {
+                    DataSource = new SortableBindingList<TrassenElementExt>(Elemente)
+                };
+                gridView.AutoResizeColumns();
+            }
+
             if (GradientenElemente != null)
             {
                 foreach (GradientElementExt element in GradientenElemente)
@@ -664,52 +583,56 @@ namespace TRA_Lib
             Form.Update();
         }
 
+        private void GridView_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            var grid = (DataGridView)sender;
+            if (grid == null || e.RowIndex < 0) return;
+
+            var element = grid.Rows[e.RowIndex].DataBoundItem as TrassenElementExt;
+            if (element == null) return;
+            element.Interpolate(interpDelta, interpTolerance);
+            Plot2D?.Refresh();
+            PlotT?.Refresh();
+            PlotG?.Refresh();
+        }
+
         private void GridView_CellMouseLeave(object sender, DataGridViewCellEventArgs e)
         {
-            DataGridView gridView = (DataGridView)sender;
-            if (gridView != null && e.RowIndex >= 0 && gridView.Rows[e.RowIndex].Tag != null)
+            var grid = (DataGridView)sender;
+            if (grid == null || e.RowIndex < 0) return;
+
+            var element = grid.Rows[e.RowIndex].DataBoundItem as TrassenElementExt;
+            if (element == null) return;
+            foreach (ProjectionArrow arrow in element.projections)
             {
-                TrassenElementExt element = (TrassenElementExt)gridView.Rows[e.RowIndex].Tag;
-                if (element != null)
-                {
-                    foreach (ProjectionArrow arrow in element.projections)
-                    {
-                        arrow.ArrowFillColor = ScottPlot.Colors.LightGray;
-                    }
-                    Plot2D.Refresh();
-                }
+                arrow.ArrowFillColor = ScottPlot.Colors.LightGray;
             }
+            Plot2D.Refresh();
         }
 
         private void GridView_CellMouseEnter(object sender, DataGridViewCellEventArgs e)
         {
-            DataGridView gridView = (DataGridView)sender;
-            if (gridView != null && e.RowIndex >= 0 && gridView.Rows[e.RowIndex].Tag != null)
+            var grid = (DataGridView)sender;
+            if (grid == null || e.RowIndex < 0) return;
+
+            var element = grid.Rows[e.RowIndex].DataBoundItem as TrassenElementExt;
+            if (element == null) return;
+            foreach (ProjectionArrow arrow in element.projections)
             {
-                TrassenElementExt element = (TrassenElementExt)gridView.Rows[e.RowIndex].Tag;
-                if (element != null)
-                {
-                    foreach (ProjectionArrow arrow in element.projections)
-                    {
-                        arrow.ArrowFillColor = element.PlotColor;
-                    }
-                    Plot2D.Refresh();
-                }
+                arrow.ArrowFillColor = element.PlotColor;
             }
+            Plot2D.Refresh();
         }
 
         private void GridView_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
-             DataGridView gridView = (DataGridView)sender;
-             if (gridView != null)
-             {
-                    TrassenElementExt element = (TrassenElementExt)gridView.Rows[e.RowIndex].Tag;
-                    if (element != null)
-                    {
-                        Plot2D.Plot.Axes.SetLimits(Math.Min(element.Ystart, element.Yend), Math.Max(element.Ystart, element.Yend), Math.Min(element.Xstart, element.Xend), Math.Max(element.Xstart, element.Xend));
-                        Plot2D.Refresh();
-                    }
-            }
+            var grid = (DataGridView)sender;
+            if (grid == null || e.RowIndex < 0) return;
+
+            var element = grid.Rows[e.RowIndex].DataBoundItem as TrassenElementExt;
+            if (element == null) return;
+            Plot2D.Plot.Axes.SetLimits(Math.Min(element.Ystart, element.Yend), Math.Max(element.Ystart, element.Yend), Math.Min(element.Xstart, element.Xend), Math.Max(element.Xstart, element.Xend));
+            Plot2D.Refresh();
         }
 
         private void OnFormClosed()
@@ -722,18 +645,6 @@ namespace TRA_Lib
             initialized = false;
         }
 
-        public void UpdatePlot()
-        {
-            if (gridView != null)
-            {
-                gridView.Rows.Clear();
-                foreach (TrassenElementExt element in Elemente)
-                {
-                    gridView.Rows.Add(element.ID, element.R1, element.R2, element.Ystart, element.Xstart, element.T, element.S, element.KzString, element.L, element.U1, element.U2, element.C);
-                }
-            }
-
-        }
         public void Warning_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e) 
         {
             if (Plot2D == null) return;
@@ -903,7 +814,7 @@ namespace TRA_Lib
         {
             this.element = element;
             this.Color = Color;
-            this.LabelText = element.ID.ToString() + "_" + element.KzString; ;
+            this.LabelText = element.ID.ToString() + "_" + element.Kz.ToString(); ;
             this.LabelRotation = (float)(element.T * (180 / Math.PI));
             LabelAlignment = Alignment.LowerLeft;
         }
@@ -948,7 +859,7 @@ namespace TRA_Lib
             CoordinateLine line = new(Start, End);
             PixelLine pxLine = Axes.GetPixelLine(line);
 
-            using SKPaint paint = new();
+            using Paint paint = Paint.NewDisposablePaint();
             Drawing.DrawMarker(rp.Canvas, paint, Axes.GetPixel(Start), MarkerStyle);
             Drawing.DrawMarker(rp.Canvas, paint, Axes.GetPixel(End), MarkerStyle);
             Drawing.DrawLine(rp.Canvas, paint, pxLine, LineStyle);

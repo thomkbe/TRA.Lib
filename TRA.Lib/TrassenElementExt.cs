@@ -145,8 +145,7 @@ namespace TRA_Lib
         public float Cf { get { return c; } }
         /// <value>Richtung am Elementanfang</value>
         public double T { set { t = value; } get { return t; } }
-        public int Kz { get { return (int)kz; } }
-        public string KzString { get { return kz.ToString(); } }
+        public Trassenkennzeichen Kz { get { return kz; } }
         public double Scale { get { return scale; } }
         public void ApplyScale() { if(!double.IsNaN(scale)) l = l*scale; scale = 1.0; }
         /// <value>Vorgaenger Element</value>
@@ -156,8 +155,17 @@ namespace TRA_Lib
         /// <value>Returns Interpolationresult</value>
         public Interpolation InterpolationResult { get { return Interpolation; }}
 
+        /// <summary>
+        /// Convenience‑Property for DataBinding (returns MeanProjectionDeviation()).
+        public double ProjectionDeviation => MeanProjectionDeviation();
+
 #if USE_SCOTTPLOT
         public ScottPlot.Color PlotColor;
+        public IScatterSource GetScatterSource(TrassenInterpolationScatterSource.Mode mode)
+        {
+            // Returns a function, which reads current interpolation on draw call
+            return new TrassenInterpolationScatterSource(() => this.Interpolation, mode);
+        }
 #endif
         public TrassenElementExt(double r1, double r2, double y, double x, double t, double s, int kz, double l, double u1, double u2, float c, int idx, Trasse owner, TrassenElementExt predecessor = null)
             : base(r1, r2, y, x, t, s, kz, l, u1, u2, c)

@@ -141,11 +141,10 @@ namespace TRA_Lib
                             trasse.Filename = Path.GetFileName(fileName);
                         }
 
-                        trasse.Elemente = new TrassenElementExt[num + 1];
                         TrassenElementExt predecessor = null;
                         for (int i = 0; i < num + 1; i++)
                         {
-                            trasse.Elemente[i] = new TrassenElementExt(
+                            trasse.Elemente.Add(new TrassenElementExt(
                             reader.ReadDouble(),
                             reader.ReadDouble(),
                             reader.ReadDouble(),
@@ -160,7 +159,7 @@ namespace TRA_Lib
                             i + 1,
                             trasse,
                             predecessor
-                            );
+                            ));
                             predecessor = trasse.Elemente[i];
                         }
                         if (reader.BaseStream.Position != reader.BaseStream.Length) { throw new SerializationException("End of Bytestream was not reached"); }

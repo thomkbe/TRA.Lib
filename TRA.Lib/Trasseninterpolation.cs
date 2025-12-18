@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using ScottPlot.Colormaps;
 using System.Numerics;
 
 namespace TRA_Lib
