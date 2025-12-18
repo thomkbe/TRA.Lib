@@ -526,9 +526,19 @@ namespace TRA_Lib
                     }
                 }
 
-                // Warnings
-                Plot2D.Plot.PlottableList.RemoveAll(n => n.GetType() == typeof(GeometryWarning) && ((GeometryWarning)n).trasse == element);
-                Plot2D.Plot.PlottableList.AddRange(element.WarningCallouts);
+                // Warnings: ensure single subscription and sync existing items
+                element.WarningCallouts.CollectionChanged -= Warning_CollectionChanged;
+                element.WarningCallouts.CollectionChanged += Warning_CollectionChanged;
+
+                // remove any previous GeometryWarning for this element (safety)
+                Plot2D.Plot.PlottableList.RemoveAll(n => n is GeometryWarning gw && gw.trasse == element);
+
+                // add current callouts to plot (and set visibility)
+                foreach (var callout in element.WarningCallouts)
+                {
+                    callout.IsVisible = showWarnings;
+                    Plot2D.Plot.Add.Plottable(callout);
+                }
 
                 // Visualize Projections (Plottables)
                 foreach (ProjectionArrow projection in element.projections)
@@ -676,7 +686,15 @@ namespace TRA_Lib
                     break; 
                 case NotifyCollectionChangedAction.Move: 
                     break; 
-                case NotifyCollectionChangedAction.Reset:       
+                case NotifyCollectionChangedAction.Reset:
+                    if (sender is System.Collections.ObjectModel.ObservableCollection<GeometryWarning> coll)
+                    {
+                        Plot2D.Plot.PlottableList.RemoveAll(n => n is GeometryWarning gw && ReferenceEquals(gw.trasse.WarningCallouts, coll));
+                    }
+                    else
+                    {
+                        Plot2D.Plot.PlottableList.RemoveAll(n => n is GeometryWarning);
+                    }
                     break; 
             }
             Plot2D.Refresh();

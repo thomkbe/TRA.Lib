@@ -108,7 +108,7 @@ namespace TRA_Lib
         Interpolation Interpolation;
 
         /// <value>List of Warnings. Callouts to show on Plot if compiled with SCOTTPLOT</value>
-        internal List<GeometryWarning> WarningCallouts = new() { };
+        internal ObservableCollection<GeometryWarning> WarningCallouts = new() { };
 
         public double MeanProjectionDeviation() { 
             var filteredProjections = projections?.Where(w => w != null);
