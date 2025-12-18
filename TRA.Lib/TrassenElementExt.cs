@@ -121,13 +121,13 @@ namespace TRA_Lib
         ///<value>ID des Elements innerhalb der Trasse</value>
         public int ID { get { return id; } }
         /// <value>Radius am Elementanfang</value>
-        public double R1 { get { return r1; } }
+        public double R1 { set { r1 = value; TrassenGeometrie?.updateParameters(l, r1, r2); } get { return r1; } }
         /// <value>Radius am Elementende</value>
-        public double R2 { get { return r2; } }
+        public double R2 { set { r2 = value; TrassenGeometrie?.updateParameters(l, r1, r2); } get { return r2; } }
         /// <value>Rechtswert am Elementanfang</value>
-        public double Ystart { get { return y; } }
+        public double Ystart { set { y = value; } get { return y; } }
         /// <value>Hochwert am Elementanfang</value>
-        public double Xstart { get { return x; } }
+        public double Xstart { set { x = value; } get { return x; } }
         /// <value>Rechtswert am Elementende</value>
         public double Yend { get { return successor != null ? successor.y : y; } }
         /// <value>Hochwert am Elementende</value>
@@ -135,7 +135,7 @@ namespace TRA_Lib
         /// <value>Station am Elementanfang</value>
         public double S { set { s = value; } get { return s; } }
         /// <value>Länge des Elements</value>
-        public double L { set { l = value; } get { return l; } }
+        public double L { set { l = value; TrassenGeometrie?.updateParameters(l, r1, r2); } get { return l; } }
         /// <value>Überhöhung am Elementanfang</value>
         public double U1 { get { return u1; } }
         /// <value>Überhöhung am Elementende</value>

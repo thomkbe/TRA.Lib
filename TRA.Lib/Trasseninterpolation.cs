@@ -29,7 +29,11 @@ namespace TRA_Lib
             this.length = length;
             this.r1 = r1;
             this.r2 = r2;
+            CalcConstants();
         }
+
+        protected virtual void CalcConstants() { }
+
         public virtual object Clone() { return this; }
 
         protected static double gon2rad(double gon) => gon * Math.PI / 200.0;
@@ -166,7 +170,7 @@ namespace TRA_Lib
         double last_Sa;
         double last_Ca;
 
-        void CalcConstants()
+        protected override void CalcConstants()
         {
             // using absolute values is not the elegant way but, simplfies calculations for sign-combinations of the radii
             curvature1 = r1 == 0.0 ? 0 : Math.Abs(1 / r1);
@@ -334,7 +338,7 @@ namespace TRA_Lib
         double last_Sa;
         double last_Ca;
 
-        void CalcConstants()
+        protected override void CalcConstants()
         {
             // using absolute values is not the elegant way but, simplfies calculations
             radius = Math.Abs(r2);
