@@ -1,24 +1,25 @@
-﻿using System;
+﻿using egbt22lib;
+using HarfBuzzSharp;
+using Microsoft.Extensions.Logging;
+using OSGeo.OSR;
+using ScottPlot;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
-using OSGeo.OSR;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Text.RegularExpressions;
-using System.Runtime.CompilerServices;
-using TRA_Lib;
-using Microsoft.Extensions.Logging;
 using System.Xml.Linq;
-using System.Diagnostics;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
-using System.Reflection;
-using ScottPlot;
-using HarfBuzzSharp;
-using System.Collections;
+using TRA_Lib;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace TRA.Tool
 {
@@ -207,80 +208,199 @@ namespace TRA.Tool
 
         private void btn_Transform_Click(object sender, EventArgs e)
         {
-            LoadingForm loadingForm = null;
-            Thread _backgroundThread = new Thread(() =>
-            {
-                loadingForm = new LoadingForm();
-                loadingForm.Show();
-                Application.Run(loadingForm);
-            });
-            _backgroundThread.Start();
-
+            Transform();
+        }
+        private void Transform()
+        {
             FlowLayoutPanel owner = Parent as FlowLayoutPanel;
             if (owner == null) { return; }
             int idx = owner.Controls.GetChildIndex(this) - 1;
 
-            List<TRATrasse> transform_Trasse = new List<TRATrasse>();
-            //Get all TRAs to transform
+            var trassenToProcess = new List<TRATrasse>();
             while (idx >= 0 && owner.Controls[idx].GetType() != typeof(TransformPanelBase))
             {
                 if (owner.Controls[idx].GetType() == typeof(TrassenPanel))
                 {
                     TrassenPanel panel = (TrassenPanel)owner.Controls[idx];
-                    if (panel.trasseL != null && !transform_Trasse.Contains(panel.trasseL)) transform_Trasse.Add(panel.trasseL);
-                    if (panel.trasseS != null && !transform_Trasse.Contains(panel.trasseS)) transform_Trasse.Add(panel.trasseS);
-                    if (panel.trasseR != null && !transform_Trasse.Contains(panel.trasseR)) transform_Trasse.Add(panel.trasseR);
+                    if (panel.trasseL != null && !trassenToProcess.Contains(panel.trasseL)) trassenToProcess.Add(panel.trasseL);
+                    if (panel.trasseS != null && !trassenToProcess.Contains(panel.trasseS)) trassenToProcess.Add(panel.trasseS);
+                    if (panel.trasseR != null && !trassenToProcess.Contains(panel.trasseR)) trassenToProcess.Add(panel.trasseR);
                 }
                 idx--;
             }
-            Task[] tasks = new Task[transform_Trasse.Count()];
-            int n = 0;
-            foreach (TRATrasse trasse in transform_Trasse)
+            var transformTask = Transform_Async(trassenToProcess);
+            transformTask.ContinueWith(t =>
             {
-                int localN = n;
-                tasks[localN] = Task.Run(() =>
+                if (t.IsFaulted)
                 {
-                    //Transform 
-                    TrassenTransform(trasse, GetTransformSetup());
-                    //Calc Deviations
-                    foreach (TrassenElementExt element in trasse.Elemente)
-                    {
-                        element.ClearProjections();
-                        Interpolation interp = element.InterpolationResult;
-                        if (interp.IsEmpty()) continue;
-                        float deviation = ((TRATrasse)element.owner).ProjectPoints(interp.X, interp.Y, true);
-                        string ownerString = element.owner.Filename + "_" + element.ID;
-                        TrassierungLog.Logger?.Log_Async(LogLevel.Information, ownerString + " " + "Deviation to geometry after transform: " + deviation, element);
-                    }
-                });
-                n++;
-            }
-            Task.WaitAll(tasks);
-            foreach (TRATrasse trasse in transform_Trasse)
-            {
-                //int localN = n;
-                //tasks[localN] = Task.Run(() =>
-                //{
-                //Re-Interpolate and do PlausabilityCheck
-                trasse.Interpolate3D();
-                //});
-                //n++;
-            }
-            foreach (TRATrasse trasse in transform_Trasse)
-            {
-                trasse.Plot();
-            }
+                    TrassierungLog.Logger?.Log_Async(LogLevel.Error, $"Transform failed: {t.Exception?.GetBaseException().Message}", nameof(Transform));
+                }
 
-            if (loadingForm != null)
-            {
-                // Use Invoke to close the form from the background thread
-                loadingForm.Invoke(new Action(() =>
+                // Starte Interpolation auf dem UI‑Thread (BeginInvoke ist non‑blocking)
+                if (this.IsHandleCreated && !this.IsDisposed)
                 {
-                    loadingForm.Close(); // Close the form
-                }));
+                    try
+                    {
+                        this.BeginInvoke(new Action(() =>
+                        {
+                            _ = InterpolationPanel.Interpolate_Async(trassenToProcess);
+                        }));
+                    }
+                    catch { /* ignore if form closing */ }
+                }
+                else
+                {
+                    // Fallback: starte trotzdem (möglicherweise marshalled intern)
+                    _ = InterpolationPanel.Interpolate_Async(trassenToProcess);
+                }
+            }, TaskScheduler.Default);
+        }
+        private async Task Transform_Async(List<TRATrasse> trassenToProcess)
+        {
+            using var cts = new System.Threading.CancellationTokenSource();
+
+            LoadingForm loadingForm = null;
+            loadingForm = new LoadingForm();
+            loadingForm.Text = "Transforming...";
+            loadingForm.FormClosing += (s, e) =>
+            {
+                if (!cts.IsCancellationRequested)
+                {
+                    cts.Cancel();
+                }
+            };
+            // show the LoadingForm on the UI thread and ensure it's in front
+            loadingForm.Show();
+            loadingForm.BringToFront();
+            // allow the form to render before heavy work
+            await Task.Yield();
+
+            try
+            {
+                // wait for loadingForm to be created and handle ready
+                int waitMs = 0;
+                while (loadingForm == null || !loadingForm.IsHandleCreated)
+                {
+                    await Task.Delay(25).ConfigureAwait(false);
+                    waitMs += 25;
+                    if (waitMs > 5000) break;
+                }
+
+                // prepare per-trasse progress reporters (on LoadingForm thread)
+                var progressMap = new Dictionary<TRATrasse, IProgress<ProgressReport>>();
+                if (loadingForm != null && loadingForm.IsHandleCreated)
+                {
+                    foreach (var trasse in trassenToProcess)
+                    {
+                        trasse.Plot(); // prepare UI
+                        int total = trasse.Elemente?.Count ?? 0;
+
+                        // composite: forward to UI progress bar and trigger single-element plot when ElementIndex >= 0
+                        var uiPr = loadingForm.AddProgressBar(trasse.Filename, total);
+
+                        progressMap[trasse] = new Progress<ProgressReport>(report =>
+                        {
+                            // forward to loading form bar
+                            try { uiPr.Report(new ProgressReport(report.Current, report.Total, report.ElementIndex)); } catch { }
+                        });
+
+                        // initial report damit Label/Bar sofort sichtbar sind
+                        try
+                        {
+                            progressMap[trasse].Report(new ProgressReport(0, total));
+                        }
+                        catch { /* safe: ignore if UI already closing */ }
+                    }
+                    loadingForm.Refresh();
+                }
+                else
+                {
+                    // fallback: no UI -> use noop progressors
+                    foreach (var trasse in trassenToProcess) progressMap[trasse] = new Progress<ProgressReport>(_ => { });
+                }
+
+                // start all per-trasse interpolation tasks in parallel and map task -> trasse
+                var taskMap = new Dictionary<Task, TRATrasse>();
+                foreach (var trasse in trassenToProcess)
+                {
+                    var progress = progressMap[trasse];
+                    var task = Task.Run(() =>
+                    {
+                        try
+                        {
+                            int total = trasse.Elemente?.Count ?? 0;
+                            int completed = 0;
+
+                            // initial report
+                            try { progress.Report(new ProgressReport(0, total)); } catch { }
+
+                            // Transform (heavy work)
+                            TrassenTransform(trasse, GetTransformSetup());
+
+                            // Calc deviations and report per element
+                            for (int i = 0; i < trasse.Elemente.Count; i++)
+                            {
+                                var element = trasse.Elemente[i];
+                                element.ClearProjections();
+                                Interpolation interp = element.InterpolationResult;
+                                if (!interp.IsEmpty())
+                                {
+                                    float deviation = ((TRATrasse)element.owner).ProjectPoints(interp.X, interp.Y, true);
+                                    string ownerString = element.owner.Filename + "_" + element.ID;
+                                    TrassierungLog.Logger?.Log_Async(LogLevel.Information, ownerString + " Deviation to geometry after transform: " + deviation, element);
+                                }
+
+                                completed++;
+
+                                // Report finished count and element index (i)
+                                try { progress.Report(new ProgressReport(completed, total, i)); } catch { }
+                            }
+
+                            // final report
+                            try { progress.Report(new ProgressReport(total, total)); } catch { }
+                        }
+                        catch (Exception ex)
+                        {
+                            TrassierungLog.Logger?.Log_Async(LogLevel.Error, $"Transform task failed for {trasse.Filename}: {ex.Message}", nameof(Transform_Async));
+                            throw;
+                        }
+                    });
+                    taskMap[task] = trasse;
+
+                }
+                var pending = taskMap.Keys.ToList();
+                while (pending.Count > 0)
+                {
+                    Task finished = await Task.WhenAny(pending).ConfigureAwait(false);
+                    pending.Remove(finished);
+
+                    TRATrasse finishedTrasse = taskMap[finished];
+                    try
+                    {
+                        // observe result / exceptions (await to propagate)
+                        await finished.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        TrassierungLog.Logger?.Log_Async(LogLevel.Information, $"Transformation cancelled for {finishedTrasse.Filename}", nameof(Transform_Async));
+                        continue;
+                    }
+                    catch (Exception ex)
+                    {
+                        TrassierungLog.Logger?.Log_Async(LogLevel.Error, $"Transformation failed for {finishedTrasse.Filename}: {ex.Message}", nameof(Transform_Async));
+                        // still try to plot what exists
+                    }
+                }
+                if (loadingForm != null)
+                {
+                    // Use Invoke to close the form from the background thread
+                    loadingForm.Invoke(new Action(() =>
+                    {
+                        loadingForm.Close(); // Close the form
+                    }));
+                }
             }
-            // Wait for the thread to terminate
-            _backgroundThread.Join();
+            catch { }
         }
     }
 }

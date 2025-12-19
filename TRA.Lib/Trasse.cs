@@ -24,6 +24,22 @@ using SkiaSharp;
 
 namespace TRA_Lib
 {   
+    public readonly struct ProgressReport
+    {
+        public int Current { get; }
+        public int Total { get; }
+        public int ElementIndex { get; }
+
+        public ProgressReport(int current, int total) : this(current, total, -1) { }
+
+        public ProgressReport(int current, int total, int elementIndex = -1)
+        {
+            Current = current;
+            Total = total;
+            ElementIndex = elementIndex;
+        }
+    }
+
     public class Trasse
     {
 #if !DEBUG
@@ -219,7 +235,7 @@ namespace TRA_Lib
         /// <param name="delta">distance along geometry between interpolation points</param>
         /// <param name="allowedTolerance">maximal allowed distance between geometry and interpolated polyline, if set to zero this value is ignored</param>
         /// <returns>Interpolation: array of 3D coordinates, along with heading and curvature for each point</returns>
-        public Interpolation Interpolate3D(TRATrasse stationierungsTrasse = null, double delta = double.NaN, double allowedTolerance = double.NaN)
+        public async Task<Interpolation> Interpolate3D(TRATrasse stationierungsTrasse = null, double delta = double.NaN, double allowedTolerance = double.NaN, IProgress<ProgressReport>? progress = null, System.Threading.CancellationToken cancellationToken = default)
         {
             if (!double.IsNaN(delta)) interpDelta = delta;
             if (!double.IsNaN(allowedTolerance)) interpTolerance = allowedTolerance;
@@ -230,46 +246,104 @@ namespace TRA_Lib
             {
                 TrassierungLog.Logger?.LogError("Can not calculate Heights for Interpolation as there are no Gradient Elements loaded for " + Filename + ". Please add Gradients by calling AssignGRA()", nameof(Interpolate3D));
             }
-            Task[] tasks = new Task[Elemente.Count];
+            int total = Elemente?.Count ?? 0;
+            if (total == 0) return interp;
+
+            // report start
+            try { progress?.Report(new ProgressReport(0, total)); } catch { }
+
+            int completed = 0;
+            var tasks = new Task[total];
             int n = 0;
+
+            // Limit concurrent element tasks to CPU count - 1 (leave one core free). Adjust if needed.
+            int maxConcurrency = Math.Max(1, Environment.ProcessorCount - 1);
+            using var sem = new System.Threading.SemaphoreSlim(maxConcurrency);
+
+            // Throttle: only forward progress updates at most every throttleMs milliseconds
+            const int throttleMs = 100;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            long lastReportMs = 0;
+
             foreach (TrassenElementExt element in Elemente)
             {
                 int localN = n;
-                tasks[localN] = Task.Run(() =>
+                var elementLocal = element; // avoid closure capture issues
+
+                tasks[localN] = Task.Run(async () =>
                 {
-                    ref Interpolation interpolation = ref element.Interpolate(interpDelta, interpTolerance);
+                    await sem.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        Interpolation interpolation = elementLocal.Interpolate(interpDelta, interpTolerance);
+
                     if (GradientenElemente == null)
                     {
+                            // Even if no gradient data, count element as completed
+                            System.Threading.Interlocked.Increment(ref completed);
                         return;
                     }
-                    int num = interpolation.IsEmpty()? 0 : interpolation.X.Length;
+
+                        int num = interpolation.IsEmpty() ? 0 : interpolation.X.Length;
                     interpolation.H = new double[num];
                     interpolation.s = new double[num];
-                    if(saveProjectionsOnInterpolation) element.ClearProjections();
+                        if (saveProjectionsOnInterpolation) elementLocal.ClearProjections();
+
                     for (int i = 0; i < num; i++)
                     {
+                            cancellationToken.ThrowIfCancellationRequested();
+
                         double s;
-                        if (trasseS != null)  //If TrasseS is set, try projecting coordinate to trasseS, s = NaN if fails
+                            if (trasseS != null)
                         {
-                            (s, _, _, _) = trasseS.ProjectPoints(interpolation.X[i], interpolation.Y[i],saveProjectionsOnInterpolation);
+                                (s, _, _, _) = trasseS.ProjectPoints(interpolation.X[i], interpolation.Y[i], saveProjectionsOnInterpolation);
                         }
-                        else //if no trasseS provided use original value S
+                            else
                         {
                             s = interpolation.S[i];
                         }
                         GradientElementExt gradient = GetGradientElementFromS(s);
                         (interpolation.H[i], interpolation.s[i]) = (gradient != null ? gradient.GetHAtS(s) : (double.NaN, double.NaN));
                     }
-                });
+
+                        int cur = System.Threading.Interlocked.Increment(ref completed);
+
+                        // Throttle reports: time based or final
+                        long now = sw.ElapsedMilliseconds;
+                        long prev = System.Threading.Interlocked.Read(ref lastReportMs);
+                        if (cur == total || now - prev >= throttleMs)
+                        {
+                            // Try to atomically update lastReportMs to avoid floods
+                            if (System.Threading.Interlocked.CompareExchange(ref lastReportMs, now, prev) == prev || cur == total)
+                            {
+                                try { progress?.Report(new ProgressReport(cur, total, localN)); } catch { }
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        sem.Release();
+                    }
+                }, cancellationToken);
+
                 n++;
             }
-            Task.WaitAll(tasks);
+
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+
             foreach (TrassenElementExt element in Elemente)
             {
                 interp.Concat(element.InterpolationResult);
             }
+
+            // final report (complete)
+            try { progress?.Report(new ProgressReport(total, total)); } catch { }
+
             return interp;
         }
+
         /// <summary>
         /// Project an Array of X,Y coordinates on elements geoemtry
         /// </summary>
