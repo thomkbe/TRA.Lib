@@ -259,7 +259,8 @@ namespace TRA_Lib
             (Xi, Yi, _) = GetPointAtS(l, true);
             int n = 0;
             while (Math.Sqrt(Math.Pow(Xi - Xend, 2) + Math.Pow(Yi - Yend, 2)) > Trassierung.ConnectivityMismatchTolerance)
-            { 
+            {
+                if (l < 2* Trassierung.ConnectivityMismatchTolerance) break; // we only optimize elements with length double of Tolerance to avoid numeric instabilities
                 if (bFitHeading)
                 {
                     double gammai = Math.Atan2(Xi - Xstart, Yi - Ystart); //heading(Richtungswinkel) from geometry
