@@ -23,7 +23,7 @@ using SkiaSharp;
 [assembly: InternalsVisibleTo("TRA.Lib_TEST")]
 
 namespace TRA_Lib
-{   
+{
     public readonly struct ProgressReport
     {
         public int Current { get; }
@@ -279,34 +279,34 @@ namespace TRA_Lib
 
                         Interpolation interpolation = elementLocal.Interpolate(interpDelta, interpTolerance);
 
-                    if (GradientenElemente == null)
-                    {
+                        if (GradientenElemente == null)
+                        {
                             // Even if no gradient data, count element as completed
                             System.Threading.Interlocked.Increment(ref completed);
-                        return;
-                    }
+                            return;
+                        }
 
                         int num = interpolation.IsEmpty() ? 0 : interpolation.X.Length;
-                    interpolation.H = new double[num];
-                    interpolation.s = new double[num];
+                        interpolation.H = new double[num];
+                        interpolation.s = new double[num];
                         if (saveProjectionsOnInterpolation) elementLocal.ClearProjections();
 
-                    for (int i = 0; i < num; i++)
-                    {
+                        for (int i = 0; i < num; i++)
+                        {
                             cancellationToken.ThrowIfCancellationRequested();
 
-                        double s;
+                            double s;
                             if (trasseS != null)
-                        {
+                            {
                                 (s, _, _, _) = trasseS.ProjectPoints(interpolation.X[i], interpolation.Y[i], saveProjectionsOnInterpolation);
-                        }
+                            }
                             else
-                        {
-                            s = interpolation.S[i];
+                            {
+                                s = interpolation.S[i];
+                            }
+                            GradientElementExt gradient = GetGradientElementFromS(s);
+                            (interpolation.H[i], interpolation.s[i]) = (gradient != null ? gradient.GetHAtS(s) : (double.NaN, double.NaN));
                         }
-                        GradientElementExt gradient = GetGradientElementFromS(s);
-                        (interpolation.H[i], interpolation.s[i]) = (gradient != null ? gradient.GetHAtS(s) : (double.NaN, double.NaN));
-                    }
 
                         int cur = System.Threading.Interlocked.Increment(ref completed);
 
@@ -391,12 +391,13 @@ namespace TRA_Lib
 
 #if USE_SCOTTPLOT
         public static Form Form;
-        static bool initialized = false;
+        static bool initializedGlobal = false; // Init the Main Form
+        bool initializedLocal = false; // Init the Trasse-specific components
         static bool showWarnings = true;
         /// <value>Plot for a 2D overview of all plotted trassen</value>
         static ScottPlot.WinForms.FormsPlot Plot2D;
-        /// <value>List of all Plottables of this element</value>
-        List<IPlottable> Plottables = new();
+        /// <value>List of all Plottables per element</value>
+        Dictionary<TrassenElementExt, List<IPlottable>> Plottables = new();
         /// <value>Callout for right-click selected Coordinate and s-projection</value>
         static ProjectionArrow selectedS;
         static TrackBar ProjectionScale;
@@ -408,70 +409,71 @@ namespace TRA_Lib
         DataGridView gridView;
         //ScaleFactor for ScottPlots
         static float scale;
-        public void Plot()
+        private void InitGlobalPlot()
         {
-            if (!initialized)
+            if (Form == null) Form = new() { Width = (int)(800), Height = (int)(500) };
+            scale = Form.DeviceDpi / 96;//96 == default DPI
+            Form.Size = new Size((int)(800 * scale), (int)(500 * scale));
+            SplitContainer splitContainer = new SplitContainer
             {
-                if(Form == null) Form = new() { Width = (int)(800), Height = (int)(500) };
-                scale = Form.DeviceDpi / 96;//96 == default DPI
-                Form.Size = new Size((int)(800 * scale), (int)(500 * scale));
-                SplitContainer splitContainer = new SplitContainer
-                {
-                    Dock = DockStyle.Fill,
-                    Orientation = System.Windows.Forms.Orientation.Horizontal,
-                    SplitterDistance = (int)(Form.ClientSize.Height * 0.7)
-                };
-                FlowLayoutPanel BtnPanel = new FlowLayoutPanel
-                {
-                    Dock = DockStyle.Bottom,
-                    Height = 50,
-                    FlowDirection = FlowDirection.LeftToRight,
-                    Padding = new(80, 5, 80, 5)
-                };
-                CheckBox CheckShowWarnings = new CheckBox
-                {
-                    Text = "Show Warnings",
-                    AutoSize = true,
-                    Checked = true,
-                };
-                CheckShowWarnings.CheckedChanged += CheckShowWarnings_CheckedChanged;
-                CheckBox CheckElementLabels = new CheckBox
-                {
-                    Text = "Show Element Labels",
-                    AutoSize = true,
-                    Checked = true,
-                };
-                CheckElementLabels.CheckedChanged += CheckElementLabels_CheckedChanged;
-                CheckBox CheckProjections = new CheckBox
-                {
-                    Text = "Show Projections",
-                    AutoSize = true,
-                    Checked = false,
-                };
-                CheckProjections.CheckedChanged += CheckProjections_CheckedChanged;
-                ProjectionScale = new TrackBar
-                {
-                    Minimum = 0,
-                    Maximum = 20,
-                    TickFrequency = 10,
-                    Width = 100,
-                    Visible = false
-                };
-                ProjectionScale.ValueChanged += ProjectionScale_ValueChanged;
-                TabControl tabControl = new TabControl
-                {
-                    Dock = DockStyle.Fill
-                };
-                tabControl.SelectedIndexChanged += TabControl_SelectedIndexChanged;
-                Form.Controls.Add(splitContainer);
-                Form.Controls.Add(BtnPanel);
-                BtnPanel.Controls.Add(CheckElementLabels);
-                BtnPanel.Controls.Add(CheckShowWarnings);
-                BtnPanel.Controls.Add(CheckProjections);
-                BtnPanel.Controls.Add(ProjectionScale);
-                splitContainer.Panel2.Controls.Add(tabControl);  
-                initialized = true;
-            }
+                Dock = DockStyle.Fill,
+                Orientation = System.Windows.Forms.Orientation.Horizontal,
+                SplitterDistance = (int)(Form.ClientSize.Height * 0.7)
+            };
+            FlowLayoutPanel BtnPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 50,
+                FlowDirection = FlowDirection.LeftToRight,
+                Padding = new(80, 5, 80, 5)
+            };
+            CheckBox CheckShowWarnings = new CheckBox
+            {
+                Text = "Show Warnings",
+                AutoSize = true,
+                Checked = true,
+            };
+            CheckShowWarnings.CheckedChanged += CheckShowWarnings_CheckedChanged;
+            CheckBox CheckElementLabels = new CheckBox
+            {
+                Text = "Show Element Labels",
+                AutoSize = true,
+                Checked = true,
+            };
+            CheckElementLabels.CheckedChanged += CheckElementLabels_CheckedChanged;
+            CheckBox CheckProjections = new CheckBox
+            {
+                Text = "Show Projections",
+                AutoSize = true,
+                Checked = false,
+            };
+            CheckProjections.CheckedChanged += CheckProjections_CheckedChanged;
+            ProjectionScale = new TrackBar
+            {
+                Minimum = 0,
+                Maximum = 20,
+                TickFrequency = 10,
+                Width = 100,
+                Visible = false
+            };
+            ProjectionScale.ValueChanged += ProjectionScale_ValueChanged;
+            TabControl tabControl = new TabControl
+            {
+                Dock = DockStyle.Fill
+            };
+            tabControl.SelectedIndexChanged += TabControl_SelectedIndexChanged;
+            Form.Controls.Add(splitContainer);
+            Form.Controls.Add(BtnPanel);
+            BtnPanel.Controls.Add(CheckElementLabels);
+            BtnPanel.Controls.Add(CheckShowWarnings);
+            BtnPanel.Controls.Add(CheckProjections);
+            BtnPanel.Controls.Add(ProjectionScale);
+            splitContainer.Panel2.Controls.Add(tabControl);
+            initializedGlobal = true;
+        }
+        private void InitPlot()
+        {
+            if (!initializedGlobal) InitGlobalPlot();
             Form.FormClosing += (sender, e) => OnFormClosed();
             //Add Plot for 2D overview
             PixelPadding padding = new(80, 80, 20, 5);
@@ -525,6 +527,11 @@ namespace TRA_Lib
                     new DataGridViewTextBoxColumn { HeaderText = "Punktnummer", Name = "C", ToolTipText = "Punktnummer (ehemals C -Abstand zur Trasse)", ValueType = typeof(string), DataPropertyName = nameof(TrassenElementExt.C) },
                     new DataGridViewTextBoxColumn { HeaderText = "ProjectionDeviation", Name = "Deviation", ValueType = typeof(double), DataPropertyName = nameof(TrassenElementExt.ProjectionDeviation) }
                 });
+                gridView.DataSource = new System.Windows.Forms.BindingSource()
+                {
+                    DataSource = new SortableBindingList<TrassenElementExt>(Elemente)
+                };
+                gridView.AutoResizeColumns();
                 padding = new(80, 80, 50, 5);
                 //Set properties for new Details-Plot (TRA)
                 PlotT = new ScottPlot.WinForms.FormsPlot { Dock = DockStyle.Fill };
@@ -563,78 +570,6 @@ namespace TRA_Lib
             Plot2D.Plot.Axes.Link(PlotG, true, false);
             PlotG.Plot.Axes.Link(Plot2D, true, false);
 
-            gridView.Rows.Clear();           
-            PlotT.Plot.Clear();
-            PlotG.Plot.Clear();
-            //Remove previous Plottables from Plots
-            foreach (IPlottable plottable in Plottables)
-            {
-                Plot2D.Plot.Remove(plottable);
-            }
-           
-            foreach (TrassenElementExt element in Elemente)
-            {
-                Interpolation interpolation = element.InterpolationResult;
-                if (!interpolation.IsEmpty())
-                {
-                    var scatter = Plot2D.Plot.Add.Scatter(element.GetScatterSource(TrassenInterpolationScatterSource.Mode.YX));
-                    Plottables.Add(scatter);
-                    scatter.LegendText = Filename;
-                    element.PlotColor = scatter.MarkerFillColor;
-                    ElementMarker marker = new(element, element.PlotColor);
-                    Plottables.Add(Plot2D.Plot.Add.Plottable(marker));
-                    var scatterT = PlotT.Plot.Add.Scatter(element.GetScatterSource(TrassenInterpolationScatterSource.Mode.YT), element.PlotColor);
-                    //scatterT.LegendText = "Heading";
-                    Plottables.Add(PlotT.Plot.Add.VerticalLine(element.Ystart, 2, element.PlotColor));
-                    var scatterK = PlotT.Plot.Add.ScatterLine(element.GetScatterSource(TrassenInterpolationScatterSource.Mode.YK), element.PlotColor);
-                    //scatterK.LegendText = "Curvature";
-                    // tell each T and K plot to use a different axis
-                    scatterT.Axes.YAxis = PlotT.Plot.Axes.Left;
-                    scatterK.Axes.YAxis = PlotT.Plot.Axes.Right;
-
-                    if (interpolation.H != null && interpolation.s != null)
-                    {
-                        var scatterH = PlotG.Plot.Add.Scatter(element.GetScatterSource(TrassenInterpolationScatterSource.Mode.YH), element.PlotColor);
-                        scatterH.Axes.YAxis = PlotG.Plot.Axes.Left;
-                        var scatterSlope = PlotG.Plot.Add.ScatterLine(element.GetScatterSource(TrassenInterpolationScatterSource.Mode.YS), element.PlotColor);
-                        scatterSlope.Axes.YAxis = PlotG.Plot.Axes.Right;
-                    }
-                }
-
-                // Warnings: ensure single subscription and sync existing items
-                element.WarningCallouts.CollectionChanged -= Warning_CollectionChanged;
-                element.WarningCallouts.CollectionChanged += Warning_CollectionChanged;
-
-                // remove any previous GeometryWarning for this element (safety)
-                Plot2D.Plot.PlottableList.RemoveAll(n => n is GeometryWarning gw && gw.trasse == element);
-
-                // add current callouts to plot (and set visibility)
-                foreach (var callout in element.WarningCallouts)
-                {
-                    callout.IsVisible = showWarnings;
-                    Plot2D.Plot.Add.Plottable(callout);
-                }
-
-                // Visualize Projections (Plottables)
-                foreach (ProjectionArrow projection in element.projections)
-                {
-                    if (projection != null)
-                    {
-                        projection.IsVisible = false;
-                        Plottables.Add(Plot2D.Plot.Add.Plottable(projection));
-                    }
-                }
-            }
-
-            if (gridView != null)
-            {
-                gridView.DataSource = new System.Windows.Forms.BindingSource()
-                {
-                    DataSource = new SortableBindingList<TrassenElementExt>(Elemente)
-                };
-                gridView.AutoResizeColumns();
-            }
-
             if (GradientenElemente != null)
             {
                 foreach (GradientElementExt element in GradientenElemente)
@@ -650,20 +585,130 @@ namespace TRA_Lib
             }
             else
             {
-                Plottables.Add(PlotG.Plot.Add.Annotation("No Gradient Data available"));
+                PlotG.Plot.Add.Annotation("No Gradient Data available");
+            }
+
+            initializedLocal = true;
+        }
+        public void Plot()
+        {
+            if (!initializedLocal) InitPlot();
+
+            // Remove Plottables for removed elements
+            var currentElements = new HashSet<TrassenElementExt>(Elemente);
+            var removed = Plottables.Keys.Where(k => !currentElements.Contains(k)).ToList();
+            foreach (var el in removed)
+            {
+                var list = Plottables[el];
+                foreach (var p in list)
+                {
+                    try { Plot2D.Plot.Remove(p); } catch { }
+                    try { PlotT.Plot.Remove(p); } catch { }
+                    try { PlotG.Plot.Remove(p); } catch { }
+                }
+                Plottables.Remove(el);
+            }
+            foreach (TrassenElementExt element in Elemente)
+            {
+                Interpolation interpolation = element.InterpolationResult;
+                if (interpolation.IsEmpty())
+                {
+                    // Falls vorher Plottables existierten, entfernen
+                    if (Plottables.TryGetValue(element, out var oldList))
+                    {
+                        foreach (var p in oldList)
+                        {
+                            try { Plot2D.Plot.Remove(p); } catch { }
+                            try { PlotT.Plot.Remove(p); } catch { }
+                            try { PlotG.Plot.Remove(p); } catch { }
+                        }
+                        Plottables.Remove(element);
+                    }
+                }
+                
+                if (!Plottables.ContainsKey(element))
+                {
+                    var added = new List<IPlottable>();
+
+                    // 2D Scatter (uses IScatterSource so it picks up interpolation dynamically)
+                    var scatter = Plot2D.Plot.Add.Scatter(element.GetScatterSource(TrassenInterpolationScatterSource.Mode.YX));
+                    scatter.LegendText = Filename;
+                    added.Add(scatter);
+
+                    // Element label marker (plottable)
+                    element.PlotColor = scatter.MarkerFillColor;
+                    ElementMarker marker = new(element, element.PlotColor);
+                    added.Add(Plot2D.Plot.Add.Plottable(marker));
+
+                    // TRA detail plots (heading & curvature)
+                    var scatterT = PlotT.Plot.Add.Scatter(element.GetScatterSource(TrassenInterpolationScatterSource.Mode.YT), element.PlotColor);
+                    added.Add(scatterT);
+                    added.Add(PlotT.Plot.Add.VerticalLine(element.Ystart, 2, element.PlotColor));
+                    var scatterK = PlotT.Plot.Add.ScatterLine(element.GetScatterSource(TrassenInterpolationScatterSource.Mode.YK), element.PlotColor);
+                    added.Add(scatterK);
+                    // Achsenzuweisung
+                    scatterT.Axes.YAxis = PlotT.Plot.Axes.Left;
+                    scatterK.Axes.YAxis = PlotT.Plot.Axes.Right;
+
+                    // GRA detail plots (H, slope) falls vorhanden
+                    var scatterH = PlotG.Plot.Add.Scatter(element.GetScatterSource(TrassenInterpolationScatterSource.Mode.YH), element.PlotColor);
+                    added.Add(scatterH);
+                    scatterH.Axes.YAxis = PlotG.Plot.Axes.Left;
+                    var scatterSlope = PlotG.Plot.Add.ScatterLine(element.GetScatterSource(TrassenInterpolationScatterSource.Mode.YS), element.PlotColor);
+                    added.Add(scatterSlope);
+                    scatterSlope.Axes.YAxis = PlotG.Plot.Axes.Right;
+
+                    // Visualize Projections (Plottables) -> werden auf Plot2D hinzugefügt
+                    foreach (ProjectionArrow projection in element.projections)
+                    {
+                        if (projection != null)
+                        {
+                            projection.IsVisible = false;
+                            var p = Plot2D.Plot.Add.Plottable(projection);
+                            added.Add(p);
+                        }
+                    }
+
+                    // Save mapping
+                    Plottables[element] = added;
+
+                    // Warnings: ensure single subscription and sync existing items
+                    element.WarningCallouts.CollectionChanged -= Warning_CollectionChanged;
+                    element.WarningCallouts.CollectionChanged += Warning_CollectionChanged;
+
+                    // remove any previous GeometryWarning for this element (safety)
+                    Plot2D.Plot.PlottableList.RemoveAll(n => n is GeometryWarning gw && gw.trasse == element);
+
+                    // add current callouts to plot (and set visibility)
+                    foreach (var callout in element.WarningCallouts)
+                    {
+                        callout.IsVisible = showWarnings;
+                        Plot2D.Plot.Add.Plottable(callout);
+                    }
+                }
+
+                // Projections
+                var old_proj = Plottables[element].FindAll(x => x is ProjectionArrow);
+                foreach(var proj in old_proj)
+                {
+                    Plottables[element].Remove(proj);
+                    Plot2D.Plot.Remove(proj);
+                }
+                foreach (var proj in element.projections) Plot2D.Plot.Add.Plottable(proj);
+                Plottables[element].AddRange(element.projections);
             }
 
             // Set the axis scale to be equal
             try //ScottPlot can crash on NaNs, which can occur sometimes on Interpolation
             {
                 Plot2D.Plot.Axes.AutoScale();
+                Plot2D.Plot.Axes.SquareUnits();
+                Plot2D.Plot.HideLegend();
+                Plot2D.Refresh();
+                PlotT.Refresh();
+                PlotG.Refresh();
             }
             catch { }
-            Plot2D.Plot.Axes.SquareUnits();
-            Plot2D.Plot.HideLegend();
-            Plot2D.Refresh();
-            PlotT.Refresh();
-            PlotG.Refresh();
             if (!Form.Visible) Form.Show();// ShowDialog();
             Form.Update();
         }
@@ -676,6 +721,7 @@ namespace TRA_Lib
             var element = grid.Rows[e.RowIndex].DataBoundItem as TrassenElementExt;
             if (element == null) return;
             element.Interpolate(interpDelta, interpTolerance);
+            element.Predecessor.PlausibilityCheck(); // Changes may also effect Predecessor
             Plot2D?.Refresh();
             PlotT?.Refresh();
             PlotG?.Refresh();
@@ -727,7 +773,8 @@ namespace TRA_Lib
             gridView = null;
             Plot2D = null;
             Form = null;
-            initialized = false;
+            initializedGlobal = false;
+            initializedLocal = false;
         }
 
         public void Warning_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e) 

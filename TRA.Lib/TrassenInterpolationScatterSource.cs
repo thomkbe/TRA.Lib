@@ -103,7 +103,7 @@ namespace TRA_Lib
         public CoordinateRange GetLimitsX()
         {
             var pts = BuildPoints();
-            if (pts.Count == 0) return new CoordinateRange(0, 0);
+            if (pts.Count == 0) return new CoordinateRange(double.NaN, double.NaN);
             double min = double.PositiveInfinity, max = double.NegativeInfinity;
             foreach (var p in pts) { if (!double.IsNaN(p.X)) { min = Math.Min(min, p.X); max = Math.Max(max, p.X); } }
             if (double.IsInfinity(min)) return new CoordinateRange(0, 0);
@@ -113,7 +113,7 @@ namespace TRA_Lib
         public CoordinateRange GetLimitsY()
         {
             var pts = BuildPoints();
-            if (pts.Count == 0) return new CoordinateRange(0, 0);
+            if (pts.Count == 0) return new CoordinateRange(double.NaN, double.NaN);
             double min = double.PositiveInfinity, max = double.NegativeInfinity;
             foreach (var p in pts) { if (!double.IsNaN(p.Y)) { min = Math.Min(min, p.Y); max = Math.Max(max, p.Y); } }
             if (double.IsInfinity(min)) return new CoordinateRange(0, 0);
