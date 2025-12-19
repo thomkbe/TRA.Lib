@@ -407,6 +407,7 @@ namespace TRA_Lib
         ScottPlot.WinForms.FormsPlot PlotG;
         /// <value>Table for all loaded Attributes of the TRA-File</value>
         DataGridView gridView;
+        ContextMenuStrip gridViewContextMenu;
         //ScaleFactor for ScottPlots
         static float scale;
         private void InitGlobalPlot()
@@ -532,6 +533,22 @@ namespace TRA_Lib
                     DataSource = new SortableBindingList<TrassenElementExt>(Elemente)
                 };
                 gridView.AutoResizeColumns();
+
+                // Context-menu for gridView
+                gridViewContextMenu = new ContextMenuStrip();
+                var zoomElement = new ToolStripMenuItem("Zoom to Element");
+                zoomElement.Click += GridView_ContextMenu_Zoom_Click;
+                var removeElement = new ToolStripMenuItem("Remove Element");
+                removeElement.Click += GridView_ContextMenu_Remove_Click;
+                var insertElement = new ToolStripMenuItem("Insert Element");
+                insertElement.Click += GridView_ContextMenu_Insert_Click;
+                var optimizeElement = new ToolStripMenuItem("Optimize Element");
+                optimizeElement.Click += GridView_ContextMenu_Optimize_Click;
+                gridViewContextMenu.Items.AddRange(new ToolStripItem[] { zoomElement, removeElement, insertElement, optimizeElement });
+
+                gridView.ContextMenuStrip = gridViewContextMenu;
+                gridView.MouseDown += GridView_MouseDown;
+
                 padding = new(80, 80, 50, 5);
                 //Set properties for new Details-Plot (TRA)
                 PlotT = new ScottPlot.WinForms.FormsPlot { Dock = DockStyle.Fill };
@@ -590,6 +607,7 @@ namespace TRA_Lib
 
             initializedLocal = true;
         }
+
         public void Plot()
         {
             if (!initializedLocal) InitPlot();
@@ -905,6 +923,178 @@ namespace TRA_Lib
                 plot.MarkerSize = plot.LegendText == label ? 5 : 0;
             }
             Plot2D.Refresh();
+        }
+
+        private void GridView_ContextMenu_Zoom_Click(object sender, EventArgs e)
+        {
+            if (gridView.SelectedCells.Count > 0)
+            {
+                var element = gridView.Rows[gridView.SelectedCells[0].RowIndex].DataBoundItem as TrassenElementExt;
+                if (element != null)
+                {
+                    Plot2D.Plot.Axes.SetLimits(Math.Min(element.Ystart, element.Yend), Math.Max(element.Ystart, element.Yend), Math.Min(element.Xstart, element.Xend), Math.Max(element.Xstart, element.Xend));
+                    Plot2D.Refresh();
+                }
+            }
+        }
+
+        private void GridView_ContextMenu_Remove_Click(object sender, EventArgs e)
+        {
+            if (gridView.SelectedCells.Count == 0) return;
+
+            var element = gridView.Rows[gridView.SelectedCells[0].RowIndex].DataBoundItem as TrassenElementExt;
+            if (element == null) return;
+
+            int idx = Elemente.IndexOf(element);
+            if (idx < 0) return;
+
+            // Remove any plottables related to this element to keep Plot state consistent
+            try
+            {
+                if (Plottables.TryGetValue(element, out var list))
+                {
+                    foreach (var p in list)
+                    {
+                        try { Plot2D.Plot.Remove(p); } catch { }
+                        try { PlotT.Plot.Remove(p); } catch { }
+                        try { PlotG.Plot.Remove(p); } catch { }
+                    }
+                    Plottables.Remove(element);
+                }
+            }
+            catch { /* safe best-effort cleanup */ }
+
+            // fix predecessor/successor links
+            var pred = element.Predecessor;
+            var succ = element.Successor;
+            if (pred != null) pred.Successor = succ;
+            if (succ != null) succ.Predecessor = pred;
+
+            // remove element and renumber IDs to match index+1 convention
+            Elemente.RemoveAt(idx);
+            for (int i = idx; i < Elemente.Count; i++)
+            {
+                Elemente[i].ID = i + 1;
+            }
+
+            // Update neighboring element plausibility / interpolation
+            pred?.PlausibilityCheck();
+            if (pred != null) pred.Interpolate(interpDelta, interpTolerance);
+            succ?.Interpolate(interpDelta, interpTolerance);
+
+
+            // Ensure UI binding refreshes
+            if (gridView.DataSource is BindingSource bs)
+            {
+                bs.ResetBindings(false);
+            }
+            else
+            {
+                gridView.Refresh();
+            }
+            Plot();
+        }
+
+        private void GridView_ContextMenu_Insert_Click(object sender, EventArgs e)
+        {
+            if (gridView.SelectedCells.Count == 0) return;
+
+            var element = gridView.Rows[gridView.SelectedCells[0].RowIndex].DataBoundItem as TrassenElementExt;
+            if (element == null) return;
+
+            int idx = Elemente.IndexOf(element);
+            if (idx < 0) return;
+
+            // Safely obtain heading (fallback to element.T if interpolation empty)
+            double heading, startX, startY;
+            try
+            {
+                heading = element.InterpolationResult.IsEmpty() ? element.T : element.InterpolationResult.T.Last();
+                startX = element.InterpolationResult.IsEmpty() ? element.Xend : element.InterpolationResult.X.Last();
+                startY = element.InterpolationResult.IsEmpty() ? element.Yend : element.InterpolationResult.Y.Last();
+            }
+            catch
+            {
+                heading = element.T;
+                startX = element.Xend;
+                startY = element.Yend;
+            }
+
+            // Create new element to insert after the selected element
+            var newIdx = idx + 1; // insert position in list (0-based)
+            var newId = newIdx + 1; // ID is index+1
+
+            var newElement = new TrassenElementExt(
+                0.0, 0.0,
+                startY, startX,
+                heading,
+                element.S + element.L,
+                (int)Trassenkennzeichen.Gerade,
+                100.0,
+                0.0, 0.0,
+                0,
+                newId,
+                element.owner,
+                element);
+
+            // link predecessors/successors
+            var succ = element.Successor;
+            element.Successor = newElement;
+            newElement.Predecessor = element;
+            newElement.Successor = succ;
+            if (succ != null) succ.Predecessor = newElement;
+
+            // insert into list
+            Elemente.Insert(newIdx, newElement);
+
+            // renumber IDs for subsequent elements
+            for (int i = newIdx; i < Elemente.Count; i++)
+            {
+                Elemente[i].ID = i + 1;
+            }
+
+            // Initialise interpolation and run plausibility on neighbour
+            newElement.Interpolate(interpDelta, interpTolerance);
+            element.PlausibilityCheck();
+
+
+            // Ensure UI binding refreshes
+            if (gridView.DataSource is BindingSource bs)
+            {
+                bs.ResetBindings(false);
+            }
+            else
+            {
+                gridView.Refresh();
+            }
+            Plot();
+        }
+
+        private void GridView_ContextMenu_Optimize_Click(object sender, EventArgs e)
+        {
+            if (gridView.SelectedCells.Count > 0)
+            {
+                var element = gridView.Rows[gridView.SelectedCells[0].RowIndex].DataBoundItem as TrassenElementExt;
+                if (element != null)
+                {
+                    element.Relocate(double.NaN, double.NaN, double.NaN, double.NaN, double.NaN, true, true);
+                    element.Interpolate();
+                    element.PlausibilityCheck();
+                }
+            }
+        }
+
+        private void GridView_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                var hitTest = gridView.HitTest(e.X, e.Y);
+                if (hitTest.RowIndex >= 0)
+                {
+                    gridView.ClearSelection();
+                    gridView.Rows[hitTest.RowIndex].Cells[hitTest.ColumnIndex].Selected = true;
+                }
+            }
         }
 #endif
     }

@@ -119,7 +119,7 @@ namespace TRA_Lib
 
         /// public
         ///<value>ID des Elements innerhalb der Trasse</value>
-        public int ID { get { return id; } }
+        public int ID { set { id = value; } get { return id; } }
         /// <value>Radius am Elementanfang</value>
         public double R1 { set { r1 = value; TrassenGeometrie?.updateParameters(l, r1, r2); } get { return r1; } }
         /// <value>Radius am Elementende</value>
@@ -145,7 +145,40 @@ namespace TRA_Lib
         public float Cf { get { return c; } }
         /// <value>Richtung am Elementanfang</value>
         public double T { set { t = value; } get { return t; } }
-        public Trassenkennzeichen Kz { get { return kz; } }
+        public Trassenkennzeichen Kz { set { if (value != kz)
+                {
+                    switch (value)
+                    {
+                        case Trassenkennzeichen.Gerade:
+                            TrassenGeometrie = new Gerade();
+                            break;
+                        case Trassenkennzeichen.Kreis:
+                            TrassenGeometrie = new Kreis(r1);
+                            break;
+                        case Trassenkennzeichen.Klotoide:
+                            TrassenGeometrie = new Klothoid(r1, r2, l);
+                            break;
+                        case Trassenkennzeichen.UB_S_Form:
+                            break;
+                        case Trassenkennzeichen.Bloss:
+                            TrassenGeometrie = new Bloss(r1, r2, l);
+                            break;
+                        case Trassenkennzeichen.Knick:
+                            TrassenGeometrie = new Knick(r1, l);
+                            break;
+                        case Trassenkennzeichen.KSprung:
+                            TrassenGeometrie = new KSprung(l);
+                            break;
+                        case Trassenkennzeichen.S_Form_1f:
+                            break;
+                        case Trassenkennzeichen.Bloss_1f:
+                            break;
+                        default:
+                            break;
+                    }
+                    kz = value;
+                }
+                } get { return kz; } }
         public double Scale { get { return scale; } }
         public void ApplyScale() { if(!double.IsNaN(scale)) l = l*scale; scale = 1.0; }
         /// <value>Vorgaenger Element</value>

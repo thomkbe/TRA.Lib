@@ -7,7 +7,7 @@ namespace TRA.Tool
     public partial class InterpolationPanel : BasePanel
     {
 #if USE_SCOTTPLOT
-        static bool dynamicUpdate = false;
+        static bool dynamicUpdate = false; // enable dynamic per-element plot updates during interpolation
 #endif
         public InterpolationPanel()
         {
@@ -159,12 +159,9 @@ namespace TRA.Tool
                     }
                 }
 #if USE_SCOTTPLOT
-                if (!dynamicUpdate)
+                foreach(var trasse in trassenToProcess)
                 {
-                    foreach(var trasse in trassenToProcess)
-                    {
-                        trasse.Plot();
-                    }
+                    trasse.Plot();
                 }
 #endif
                 // all done
