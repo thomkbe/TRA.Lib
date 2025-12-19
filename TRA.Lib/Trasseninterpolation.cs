@@ -212,10 +212,23 @@ namespace TRA_Lib
         // Implementing the Fresnel integrals using numerical integration
         static (double S, double C) CalculateFresnel(double x)
         {
-            int n = 100000; // Number of steps for the integration
+            if (x == 0) return (0.0, 0.0);
+
+            int n = 100000; // max number of steps for the integration
             double step = x / n;
             double sumS = 0.0;
             double sumC = 0.0;
+
+            // stop criteria parameters
+            const int checkInterval = 1000;      // interval to check
+            const int stableNeeded = 3;          // stable intervals needed for convergence
+            const double absTol = 1e-10;         // absolute tolerance for sum changes
+            const double relTol = 1e-12;         // relative tolerance (between summs)
+
+            double prevS = 0.0;
+            double prevC = 0.0;
+            int stableCount = 0;
+
             for (int i = 1; i <= n; i++)
             {
                 double t = i * step;
@@ -223,6 +236,32 @@ namespace TRA_Lib
                 (sin, cos) = Math.SinCos(Math.PI * t * t / 2);
                 sumS += sin * step;
                 sumC += cos * step;
+
+                if ((i % checkInterval) == 0)
+                {
+                    double deltaS = Math.Abs(sumS - prevS);
+                    double deltaC = Math.Abs(sumC - prevC);
+
+                    bool convS = deltaS <= Math.Max(absTol, Math.Abs(prevS) * relTol);
+                    bool convC = deltaC <= Math.Max(absTol, Math.Abs(prevC) * relTol);
+
+                    if (convS && convC)
+                    {
+                        stableCount++;
+                        if (stableCount >= stableNeeded)
+                        {
+                            // convergence assumed -> break
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        stableCount = 0;
+                    }
+
+                    prevS = sumS;
+                    prevC = sumC;
+                }
             }
             return (sumS, sumC);
         }
