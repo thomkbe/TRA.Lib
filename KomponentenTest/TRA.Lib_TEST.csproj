@@ -32,7 +32,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TRA.Lib\TRA.Lib.csproj" />
-    <ProjectReference Include="..\TRA.Tool\TRA.Tool.csproj" />
   </ItemGroup>
 
   <ItemGroup>

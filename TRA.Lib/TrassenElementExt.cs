@@ -1,13 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
+﻿
 using System.Globalization;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using ScottPlot.Finance;
-using System.Collections.Concurrent;
-using System.Windows.Forms;
-using Microsoft.Extensions.Logging.Abstractions;
-using System.Media;
-using System.Xml.Linq;
+
 
 #if USE_SCOTTPLOT
 using SkiaSharp;
@@ -510,7 +505,7 @@ namespace TRA_Lib
             Text = text;
             TrassenElementExt trasse = (TrassenElementExt)owner;
             string ownerString = trasse != null ? trasse.owner.Filename + "_" + trasse.ID : null;
-            TrassierungLog.Logger?.LogWarning(ownerString + " " + Text, owner) ;
+            //TrassierungLog.Logger?.LogWarning(ownerString + " " + Text, owner) ;
         }
     }
 #endif

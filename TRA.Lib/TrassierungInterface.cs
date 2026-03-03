@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using netDxf.Tables;
+﻿using netDxf.Tables;
 using netDxf;
 using System;
 using System.Collections.Concurrent;
@@ -16,55 +15,55 @@ using static netDxf.Entities.HatchBoundaryPath;
 
 namespace TRA_Lib
 {
-    public static class TrassierungLog
-    {
-        private static ILoggerFactory _loggerFactory;
-        private static readonly ConcurrentQueue<Tuple<LogLevel,string,object>> _logQueue = new ConcurrentQueue<Tuple<LogLevel, string,object>>();
-        private static readonly CancellationTokenSource _cts = new CancellationTokenSource();
-        private static Task _logTask;
+    //public static class TrassierungLog
+    //{
+    //    private static ILoggerFactory _loggerFactory;
+    //    private static readonly ConcurrentQueue<Tuple<LogLevel,string,object>> _logQueue = new ConcurrentQueue<Tuple<LogLevel, string,object>>();
+    //    private static readonly CancellationTokenSource _cts = new CancellationTokenSource();
+    //    private static Task _logTask;
 
-        public static void AssignLogger(ILoggerFactory loggerFactory)
-        {
-            _loggerFactory = loggerFactory;
-            Logger = _loggerFactory.CreateLogger("TrassierungLogger");
-            _logTask = Task.Run(() => ProcessLogQueue(), _cts.Token);
-        }
-        public static ILogger Logger
-        {
-            get; private set;
-        }
+    //    public static void AssignLogger(ILoggerFactory loggerFactory)
+    //    {
+    //        _loggerFactory = loggerFactory;
+    //        Logger = _loggerFactory.CreateLogger("TrassierungLogger");
+    //        _logTask = Task.Run(() => ProcessLogQueue(), _cts.Token);
+    //    }
+    //    public static ILogger Logger
+    //    {
+    //        get; private set;
+    //    }
 
-        //public static void Log(string message)
-        //{
-        //    var logEntry = $"{DateTime.Now}: {message}";
-        //    _logQueue.Enqueue(logEntry);
-        //}
+    //    //public static void Log(string message)
+    //    //{
+    //    //    var logEntry = $"{DateTime.Now}: {message}";
+    //    //    _logQueue.Enqueue(logEntry);
+    //    //}
 
-        public static void Log_Async(this ILogger logger,LogLevel logLevel, string? message, params object?[] args)
-        {
-            _logQueue.Enqueue(new Tuple<LogLevel,string,object>(logLevel,message,args));
-        }
+    //    public static void Log_Async(this ILogger logger,LogLevel logLevel, string? message, params object?[] args)
+    //    {
+    //        _logQueue.Enqueue(new Tuple<LogLevel,string,object>(logLevel,message,args));
+    //    }
 
-        private static void ProcessLogQueue()
-        {
-            while (!_cts.Token.IsCancellationRequested)
-            {
-                if (_logQueue.TryDequeue(out var logEntry))
-                {
-                    Logger.Log(logEntry.Item1,logEntry.Item2,logEntry.Item3);
-                }
-                else
-                {
-                    Thread.Sleep(100); // Adjust the sleep time as needed
-                }
-            }
-        }
-        public static void Dispose()
-        {
-            _cts.Cancel();
-            _logTask.Wait();
-        }
-    }
+    //    private static void ProcessLogQueue()
+    //    {
+    //        while (!_cts.Token.IsCancellationRequested)
+    //        {
+    //            if (_logQueue.TryDequeue(out var logEntry))
+    //            {
+    //                Logger.Log(logEntry.Item1,logEntry.Item2,logEntry.Item3);
+    //            }
+    //            else
+    //            {
+    //                Thread.Sleep(100); // Adjust the sleep time as needed
+    //            }
+    //        }
+    //    }
+    //    public static void Dispose()
+    //    {
+    //        _cts.Cancel();
+    //        _logTask.Wait();
+    //    }
+    //}
     /// <summary>
     /// Class providing import and export functionality
     /// </summary>
@@ -133,7 +132,7 @@ namespace TRA_Lib
                         TRATrasse trasse = (TRATrasse)Trasse.LoadedTrassen.Find(n => n.Filename.Equals(Path.GetFileName(fileName)));// Split('.')[0]));
                         if (trasse != null)
                         {
-                            TrassierungLog.Logger?.LogInformation("A existing TRA-Trasse was found, existing TRA Data is overwritten", nameof(trasse));
+                            //TrassierungLog.Logger?.LogInformation("A existing TRA-Trasse was found, existing TRA Data is overwritten", nameof(trasse));
                         }
                         else
                         {
@@ -396,7 +395,7 @@ namespace TRA_Lib
                         GRATrasse trasse = (GRATrasse)Trasse.LoadedTrassen.Find(n => n.Filename.Equals(Path.GetFileName(fileName).Split('.')[0]));
                         if (trasse != null)
                         {
-                            TrassierungLog.Logger?.LogInformation("A existing Trasse was found: " + (trasse is TRATrasse ? "GRA Data is added to TRATrasse, " : "") + "existing GRA Data is overwritten", nameof(trasse));
+                            //TrassierungLog.Logger?.LogInformation("A existing Trasse was found: " + (trasse is TRATrasse ? "GRA Data is added to TRATrasse, " : "") + "existing GRA Data is overwritten", nameof(trasse));
                         }
                         else
                         {

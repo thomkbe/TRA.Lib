@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using ScottPlot.Colormaps;
+﻿
 using System.Numerics;
 
 namespace TRA_Lib
@@ -339,7 +338,7 @@ namespace TRA_Lib
             }
             if (i == maxIterations)
             {
-                TrassierungLog.Logger?.Log_Async(LogLevel.Warning, "Could not Interpolate a valid solution on Clothoid geometry. Using closes value, remaining distance is " + d, this);
+                //TrassierungLog.Logger?.Log_Async(LogLevel.Warning, "Could not Interpolate a valid solution on Clothoid geometry. Using closes value, remaining distance is " + d, this);
             }
             return s;
         }
@@ -605,7 +604,7 @@ namespace TRA_Lib
             }
             if (i == maxIterations)
             {
-                TrassierungLog.Logger?.Log_Async(LogLevel.Warning,"Could not Interpolate a valid solution on Bloss geometry. Using closes value, remaining distance is " + d, this);
+                //TrassierungLog.Logger?.Log_Async(LogLevel.Warning,"Could not Interpolate a valid solution on Bloss geometry. Using closes value, remaining distance is " + d, this);
             }
             return s;
         }

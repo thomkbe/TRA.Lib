@@ -1,10 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
-using System.Globalization;
+﻿using System.Globalization;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Collections.Specialized;
-using ScottPlot.Colormaps;
-using ScottPlot.AxisRules;
 using System.Drawing;
 using static TRA_Lib.Interpolation;
 using System.Xml.Linq;
@@ -68,7 +65,7 @@ namespace TRA_Lib
         {
             if (GradientenElemente == null)
             {
-                TrassierungLog.Logger?.LogError("Can not get GradientElement from s, as there are no Gradient Elements loaded for this Trasse. Please add Gradients by calling AssignGRA()", nameof(GetGradientElementFromS)); return null;
+                //TrassierungLog.Logger?.LogError("Can not get GradientElement from s, as there are no Gradient Elements loaded for this Trasse. Please add Gradients by calling AssignGRA()", nameof(GetGradientElementFromS)); return null;
             }
             foreach (GradientElementExt element in GradientenElemente)
             {
@@ -165,7 +162,7 @@ namespace TRA_Lib
         {
             if (Elemente == null)
             {
-                TrassierungLog.Logger?.LogError("Can not get Element from s, as there are no Elements loaded for this Trasse.", nameof(GetTrassenElementFromS)); return null;
+                //TrassierungLog.Logger?.LogError("Can not get Element from s, as there are no Elements loaded for this Trasse.", nameof(GetTrassenElementFromS)); return null;
             }
             foreach (TrassenElementExt element in Elemente.Reverse())
             {
@@ -244,7 +241,7 @@ namespace TRA_Lib
             TRATrasse trasseS = stationierungsTrasse != null ? stationierungsTrasse : TrasseS; //if a valid trasse is provided use that one, else try to use a previously assigned
             if (GradientenElemente == null)
             {
-                TrassierungLog.Logger?.LogError("Can not calculate Heights for Interpolation as there are no Gradient Elements loaded for " + Filename + ". Please add Gradients by calling AssignGRA()", nameof(Interpolate3D));
+                //TrassierungLog.Logger?.LogError("Can not calculate Heights for Interpolation as there are no Gradient Elements loaded for " + Filename + ". Please add Gradients by calling AssignGRA()", nameof(Interpolate3D));
             }
             int total = Elemente?.Count ?? 0;
             if (total == 0) return interp;
@@ -1199,10 +1196,12 @@ namespace TRA_Lib
     class ProjectionArrow
     {
         public double Deviation;
+#if USE_SCOTTPLOT
         public ProjectionArrow(Coordinates pos, Coordinates tip)
         {
             Deviation = tip.Distance(pos);
         }
+#endif
     }
 #endif
-}
+    }

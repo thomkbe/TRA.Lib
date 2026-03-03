@@ -3,10 +3,11 @@
   <PropertyGroup>
     <ImplicitUsings>enable</ImplicitUsings>
 	<UseWindowsForms>true</UseWindowsForms>
-	<TargetFramework>net6.0-windows</TargetFramework>
+	<TargetFramework>net8.0-windows</TargetFramework>
 	<Configurations>Debug;Release;Release_NO_SCOTTPLOT</Configurations>
-	 <VersionPrefix>2.0.1</VersionPrefix>
-	<Version>$(c)</Version>
+	  <Version>2.2.0</Version>
+	  <ProductVersion>2.2.0</ProductVersion>
+	  <InformationalVersion>2.2.0-NoPlot_NoLogging</InformationalVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_NO_SCOTTPLOT|AnyCPU'" />
@@ -19,10 +20,7 @@
   
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.0" />
     <PackageReference Include="netDxf" Version="2023.11.10" />
-    <PackageReference Include="ScottPlot.WinForms" Version="5.1.57" />
   </ItemGroup>
 
   <ItemGroup>

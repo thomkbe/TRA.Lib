@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-
+﻿
 
 namespace TRA_Lib
 {
@@ -73,7 +72,10 @@ namespace TRA_Lib
             double tolerance = 0.00000001;
             //Tangent length
             double T_ = (Math.Abs(predecessor.r) / 100) * ((predecessor.s2 - predecessor.s1) / 2);
-            if (Math.Abs(t - T_) > tolerance) { TrassierungLog.Logger?.LogWarning("Calculated TangentLength differs from provided one in file"); }
+            if (Math.Abs(t - T_) > tolerance)
+            {
+                //TrassierungLog.Logger?.LogWarning("Calculated TangentLength differs from provided one in file");
+            }
             return true;
         }
         void CalcConstants()
