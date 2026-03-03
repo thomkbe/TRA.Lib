@@ -97,7 +97,8 @@ namespace TRA_Lib
             int sig = Math.Sign(r1);
             double r = Math.Abs(r1);
             if (r == 0) { return (s, 0.0, 0.0, 0.0); } //Gerade
-            (double X, double Y) = Math.SinCos(s / r);
+            double X = Math.Sin(s / r);
+            double Y = Math.Cos(s / r);
             return (X * r, sig * ((1 - Y) * r), s / r1, 1 / r1);
         }
 
@@ -231,8 +232,8 @@ namespace TRA_Lib
             for (int i = 1; i <= n; i++)
             {
                 double t = i * step;
-                double sin, cos;
-                (sin, cos) = Math.SinCos(Math.PI * t * t / 2);
+                double sin = Math.Sin(Math.PI * t * t / 2);
+                double cos = Math.Cos(Math.PI * t * t / 2);
                 sumS += sin * step;
                 sumC += cos * step;
 
@@ -278,8 +279,8 @@ namespace TRA_Lib
             for (int i = 1; i <= n; i++)
             {
                 t = t_0 + i * step;
-                double sin, cos;
-                (sin, cos) = Math.SinCos(Math.PI * t * t / 2);
+                double sin = Math.Sin(Math.PI * t * t / 2);
+                double cos = Math.Cos(Math.PI * t * t / 2);
                 sumS += sin * step;
                 sumC += cos * step;
             }
@@ -301,8 +302,8 @@ namespace TRA_Lib
             v1 = new Vector2();
             if (!Double.IsNaN(t))
             {
-                double x, y;
-                (x, y) = Math.SinCos(t);
+                double x = Math.Sin(t);
+                double y = Math.Cos(t);
                 v1 = new Vector2((float)y, (float)x);
                 delta = Math.Sign(X * v1.Y - Y * v1.X)*delta;
             }
@@ -518,8 +519,8 @@ namespace TRA_Lib
                 Fi = 3 * Math.Pow(x / length, 2) - 2 * Math.Pow(x / length, 3);
                 k = curvature1 + Fi * (curvature2 - curvature1);
                 t += k * step;
-                double sin, cos;
-                (sin, cos) = Math.SinCos(t);
+                double sin = Math.Sin(t);
+                double cos = Math.Cos(t);
                 S += sin * step;
                 C += cos * step;
             }
@@ -541,11 +542,10 @@ namespace TRA_Lib
             for (int i = 1; i <= n; i++)
             {
                 t = t_0 + i * step;
-                double sin, cos;
-                (sin, cos) = Math.SinCos(
-                    Math.Pow(x, 3) / (radius * Math.Pow(length, 2))
-                    - Math.Pow(x, 4) / (2 * radius * Math.Pow(length, 3))
-                    );
+                double angle = Math.Pow(x, 3) / (radius * Math.Pow(length, 2))
+                    - Math.Pow(x, 4) / (2 * radius * Math.Pow(length, 3));
+                double sin = Math.Sin(angle);
+                double cos = Math.Cos(angle);
                 sumS += sin * step;
                 sumC += cos * step;
             }
@@ -567,8 +567,8 @@ namespace TRA_Lib
             v1 = new Vector2();
             if (!Double.IsNaN(t))
             {
-                double x, y;
-                (x, y) = Math.SinCos(t);
+                double x = Math.Sin(t);
+                double y = Math.Cos(t);
                 v1 = new Vector2((float)y, (float)x);
                 delta = Math.Sign(X * v1.Y - Y * v1.X) * delta;
             }

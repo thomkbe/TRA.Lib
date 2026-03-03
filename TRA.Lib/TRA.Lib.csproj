@@ -1,13 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <ImplicitUsings>enable</ImplicitUsings>
-	<UseWindowsForms>true</UseWindowsForms>
-	<TargetFramework>net8.0-windows</TargetFramework>
+	<TargetFrameworks>net8.0-windows;net48</TargetFrameworks>
+	<LangVersion>latest</LangVersion>
 	<Configurations>Debug;Release;Release_NO_SCOTTPLOT</Configurations>
 	  <Version>2.2.0</Version>
 	  <ProductVersion>2.2.0</ProductVersion>
 	  <InformationalVersion>2.2.0-NoPlot_NoLogging</InformationalVersion>
+	  <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
+    <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_NO_SCOTTPLOT|AnyCPU'" />
@@ -17,10 +21,15 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DefineConstants>$(DefineConstants);USE_SCOTTPLOT</DefineConstants>
   </PropertyGroup>
-  
+
 
   <ItemGroup>
     <PackageReference Include="netDxf" Version="2023.11.10" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Windows.Forms" />
   </ItemGroup>
 
   <ItemGroup>
